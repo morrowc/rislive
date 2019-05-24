@@ -2,6 +2,13 @@ package rislive
 
 import "testing"
 
+var (
+	msg01 = &RisMessageData{Path: []int32{1, 2, 3, 4, 5, 6, 7, 8}}
+	msg02 = &RisMessageData{Path: []int32{1}}
+	msg03 = &RisMessageData{Path: []int32{1, 3, 4, 5, 6, 7, 8}}
+	msg04 = &RisMessageData{Path: []int32{1, 3, 2, 4, 5, 6, 7, 8}}
+)
+
 func TestMatchPrefix(t *testing.T) {
 	// Example/test announcements.
 	p4 := &RisAnnouncement{
@@ -69,11 +76,6 @@ func TestMatchPrefix(t *testing.T) {
 }
 
 func TestMatchASPath(t *testing.T) {
-	msg01 := &RisMessageData{Path: []int32{1, 2, 3, 4, 5, 6, 7, 8}}
-	msg02 := &RisMessageData{Path: []int32{1}}
-	msg03 := &RisMessageData{Path: []int32{1, 3, 4, 5, 6, 7, 8}}
-	msg04 := &RisMessageData{Path: []int32{1, 3, 2, 4, 5, 6, 7, 8}}
-
 	tests := []struct {
 		desc       string
 		msg        *RisMessageData
@@ -120,6 +122,31 @@ func TestMatchASPath(t *testing.T) {
 		got := test.msg.MatchASPath(test.candidates)
 		if got != test.want {
 			t.Errorf("[%v]: got/want mismatch, got(%v) / want(%v)", test.desc, got, test.want)
+		}
+	}
+}
+
+func TestInvalidTransitAS(t *testing.T) {
+	tests := []struct {
+		desc       string
+		msg        *RisMessageData
+		candidates map[int32]bool
+		want       bool
+	}{{
+		desc:       "Success - AS4 in transit position",
+		msg:        msg01,
+		candidates: map[int32]bool{4: true, 14: true, 0: true},
+		want:       true,
+	}, {
+		desc:       "Success - AS10 not in transit position",
+		msg:        msg01,
+		candidates: map[int32]bool{10: true, 14: true, 0: true},
+		want:       true,
+	}}
+
+	for _, test := range tests {
+		got := test.msg.InvalidTransitAS(test.candidates)
+		if got != test.want {
 		}
 	}
 }

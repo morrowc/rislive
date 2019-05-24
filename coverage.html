@@ -54,7 +54,7 @@
 			<div id="nav">
 				<select id="files">
 
-				<option value="file0">./rislive.go (32.5%)</option>
+				<option value="file0">./rislive.go (38.6%)</option>
 
 				</select>
 			</div>
@@ -133,6 +133,15 @@ func (r *RisMessageData) MatchASPath(c []int32) bool <span class="cov8" title="1
         <span class="cov8" title="1">for i := 0; i+cLen &lt; len(r.Path); i++ </span><span class="cov8" title="1">{
                 frag := r.Path[i:(i + cLen)]
                 if reflect.DeepEqual(frag, c) </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool <span class="cov8" title="1">{
+        for _, p := range r.Path </span><span class="cov8" title="1">{
+                if c[p] </span><span class="cov8" title="1">{
                         return true
                 }</span>
         }

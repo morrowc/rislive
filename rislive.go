@@ -69,6 +69,15 @@ func (r *RisMessageData) MatchASPath(c []int32) bool {
 	return false
 }
 
+func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
+	for _, p := range r.Path {
+		if c[p] {
+			return true
+		}
+	}
+	return false
+}
+
 type RisAnnouncement struct {
 	NextHop  string   `json:"next_hop"`
 	Prefixes []string `json:"prefixes"`
