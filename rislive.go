@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 )
 
 var (
@@ -25,9 +26,10 @@ type RisLive struct {
 // RisFilter is an object to hold content used to filter the collected BGP
 // routes before display to the caller.
 type RisFilter struct {
-	AsPath           []string        // Asath: [701, 7018, 3356] a fragment of the aspath seen.
-	InvalidTransitAS map[string]bool // {"701":true, "3356":true}
-	Prefix           []string        // Prefix: ["1.2.3.0/24", "2001:db8::/32"] a list of prefixes
+	AsPath           []int32        // Asath: [701, 7018, 3356] a fragment of the aspath seen.
+	InvalidTransitAS map[int32]bool // {"701":true, "3356":true}.
+	Origins          []string       // A list of interesting origin ASH.
+	Prefix           []string       // Prefix: ["1.2.3.0/24", "2001:db8::/32"] a list of prefixes.
 }
 
 // RisMessage is a single ris_message json message from the ris firehose.
@@ -51,8 +53,19 @@ type RisMessageData struct {
 }
 
 // MatchASPath matches a fragment of an aspath with an as-path in an announcement.
-func (r *RisMessageData) MatchASPath(c []string) bool {
-
+func (r *RisMessageData) MatchASPath(c []int32) bool {
+	cLen := len(c)
+	// If the announcement's aspath is shorter than the candidate, no match is possible.
+	if len(r.Path) < cLen {
+		return false
+	}
+	// Slide the candidate along the announcement path checking for a match.
+	for i := 0; i+cLen < len(r.Path); i++ {
+		frag := r.Path[i:(i + cLen)]
+		if reflect.DeepEqual(frag, c) {
+			return true
+		}
+	}
 	return false
 }
 

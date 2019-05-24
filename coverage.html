@@ -1,0 +1,232 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+
+				<option value="file0">./rislive.go (32.5%)</option>
+
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+
+			</div>
+		</div>
+		<div id="content">
+
+		<pre class="file" id="file0" style="display: none">package rislive
+
+import (
+        "bytes"
+        "encoding/json"
+        "flag"
+        "fmt"
+        "io"
+        "io/ioutil"
+        "net/http"
+        "reflect"
+)
+
+var (
+        risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
+        risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
+        risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
+)
+
+// RiSLive is a struct to hold basic data used in connecting to the RIS Live service
+// and managing data output/collection for the calling client.
+type RisLive struct {
+        Filter *RisFilter
+}
+
+// RisFilter is an object to hold content used to filter the collected BGP
+// routes before display to the caller.
+type RisFilter struct {
+        AsPath           []int32        // Asath: [701, 7018, 3356] a fragment of the aspath seen.
+        InvalidTransitAS map[int32]bool // {"701":true, "3356":true}.
+        Origins          []string       // A list of interesting origin ASH.
+        Prefix           []string       // Prefix: ["1.2.3.0/24", "2001:db8::/32"] a list of prefixes.
+}
+
+// RisMessage is a single ris_message json message from the ris firehose.
+type RisMessage struct {
+        Type string          `json:"type"`
+        Data *RisMessageData `json:"data"`
+}
+
+type RisMessageData struct {
+        Timestamp     float64            `json:"timestamp"`
+        Peer          string             `json:"peer"`
+        PeerASN       string             `json:"peer_asn, omitempty"`
+        Id            string             `json:"id"`
+        Host          string             `json:"host"`
+        Type          string             `json:"type"`
+        Path          []int32            `json:"path"`
+        Community     [][]int32          `json:"community"`
+        Origin        string             `json:"origin"`
+        Announcements []*RisAnnouncement `json:"announcements"`
+        Raw           string             `json:"raw"`
+}
+
+// MatchASPath matches a fragment of an aspath with an as-path in an announcement.
+func (r *RisMessageData) MatchASPath(c []int32) bool <span class="cov8" title="1">{
+        cLen := len(c)
+        // If the announcement's aspath is shorter than the candidate, no match is possible.
+        if len(r.Path) &lt; cLen </span><span class="cov8" title="1">{
+                return false
+        }</span>
+        // Slide the candidate along the announcement path checking for a match.
+        <span class="cov8" title="1">for i := 0; i+cLen &lt; len(r.Path); i++ </span><span class="cov8" title="1">{
+                frag := r.Path[i:(i + cLen)]
+                if reflect.DeepEqual(frag, c) </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+type RisAnnouncement struct {
+        NextHop  string   `json:"next_hop"`
+        Prefixes []string `json:"prefixes"`
+}
+
+// MatchPrefix matches a list of prefixes against an announcement's included prefixes.
+// Is an exact match, does not implement any super/subnet matching conditions.
+func (r *RisAnnouncement) MatchPrefix(cs []string) bool <span class="cov8" title="1">{
+        for _, c := range cs </span><span class="cov8" title="1">{
+                for _, p := range r.Prefixes </span><span class="cov8" title="1">{
+                        if c == p </span><span class="cov8" title="1">{
+                                return true
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+func (r *RisLive) Listen() <span class="cov0" title="0">{
+        var body io.ReadCloser
+        switch len(*risFile) == 0 </span>{
+        case true:<span class="cov0" title="0">
+                resp, err := http.Get("https://ris-live.ripe.net/v1/stream/?format=json")
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("failed to connect to ris-live: %v\n", err)
+                }</span>
+                <span class="cov0" title="0">defer resp.Body.Close()
+                body = resp.Body</span>
+        case false:<span class="cov0" title="0">
+                fd, err := ioutil.ReadFile(*risFile)
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("failed to read risFile(%v): %v\n", *risFile, err)
+                }</span>
+                <span class="cov0" title="0">body = ioutil.NopCloser(bytes.NewReader(fd))</span>
+        }
+
+        <span class="cov0" title="0">dec := json.NewDecoder(body)
+
+        i := 0
+        var rm RisMessage
+        for dec.More() </span><span class="cov0" title="0">{
+                err := dec.Decode(&amp;rm)
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("failed to decode json: %v\n", err)
+                        fmt.Printf("bad json content: %v\n", rm)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">m := rm.Data
+                prefix := ""
+                if len(m.Announcements) &gt; 0 </span><span class="cov0" title="0">{
+                        if len(m.Announcements[0].Prefixes) &gt; 0 </span><span class="cov0" title="0">{
+                                prefix = m.Announcements[0].Prefixes[0]
+                        }</span>
+                }
+                <span class="cov0" title="0">fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", i, m.Peer, m.PeerASN, prefix)
+                i++</span>
+        }
+}
+</pre>
+
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
