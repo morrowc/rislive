@@ -42,7 +42,7 @@ type RisMessage struct {
 type RisMessageData struct {
 	Timestamp     float64            `json:"timestamp"`
 	Peer          string             `json:"peer"`
-	PeerASN       string             `json:"peer_asn, omitempty"`
+	PeerASN       string             `json:"peer_asn,omitempty"`
 	Id            string             `json:"id"`
 	Host          string             `json:"host"`
 	Type          string             `json:"type"`
