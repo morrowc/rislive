@@ -17,7 +17,7 @@ var (
 	risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
 )
 
-// RiSLive is a struct to hold basic data used in connecting to the RIS Live service
+// RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
 	Filter *RisFilter
@@ -38,6 +38,7 @@ type RisMessage struct {
 	Data *RisMessageData `json:"data"`
 }
 
+// RisMessageData is the BGP oriented content of the single RisMessage message type.
 type RisMessageData struct {
 	Timestamp     float64            `json:"timestamp"`
 	Peer          string             `json:"peer"`
@@ -69,6 +70,9 @@ func (r *RisMessageData) MatchASPath(c []int32) bool {
 	return false
 }
 
+// InvalidTransitAS matches a set of ASN in the RisMessageData.Path, returning true if
+// there is a match in the Path. This should be used to alert on invalid paths seen, paths
+// which do not match intent/expectations of the announcing ASN.
 func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
 	for _, p := range r.Path {
 		if c[p] {
@@ -78,6 +82,7 @@ func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
 	return false
 }
 
+// RisAnnouncement is a struct which holds the prefixes contained in the single Bgp Message.
 type RisAnnouncement struct {
 	NextHop  string   `json:"next_hop"`
 	Prefixes []string `json:"prefixes"`
@@ -96,6 +101,8 @@ func (r *RisAnnouncement) MatchPrefix(cs []string) bool {
 	return false
 }
 
+// Listen connects to the RisLive service, parses the stream into structs
+// and makes the data stream available for analysis.
 func (r *RisLive) Listen() {
 	var body io.ReadCloser
 	switch len(*risFile) == 0 {

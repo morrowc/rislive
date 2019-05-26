@@ -87,7 +87,7 @@ var (
         risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
 )
 
-// RiSLive is a struct to hold basic data used in connecting to the RIS Live service
+// RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
         Filter *RisFilter
@@ -108,6 +108,7 @@ type RisMessage struct {
         Data *RisMessageData `json:"data"`
 }
 
+// RisMessageData is the BGP oriented content of the single RisMessage message type.
 type RisMessageData struct {
         Timestamp     float64            `json:"timestamp"`
         Peer          string             `json:"peer"`
@@ -139,6 +140,9 @@ func (r *RisMessageData) MatchASPath(c []int32) bool <span class="cov8" title="1
         <span class="cov8" title="1">return false</span>
 }
 
+// InvalidTransitAS matches a set of ASN in the RisMessageData.Path, returning true if
+// there is a match in the Path. This should be used to alert on invalid paths seen, paths
+// which do not match intent/expectations of the announcing ASN.
 func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool <span class="cov8" title="1">{
         for _, p := range r.Path </span><span class="cov8" title="1">{
                 if c[p] </span><span class="cov8" title="1">{
@@ -148,6 +152,7 @@ func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool <span class="co
         <span class="cov8" title="1">return false</span>
 }
 
+// RisAnnouncement is a struct which holds the prefixes contained in the single Bgp Message.
 type RisAnnouncement struct {
         NextHop  string   `json:"next_hop"`
         Prefixes []string `json:"prefixes"`
@@ -166,6 +171,8 @@ func (r *RisAnnouncement) MatchPrefix(cs []string) bool <span class="cov8" title
         <span class="cov8" title="1">return false</span>
 }
 
+// Listen connects to the RisLive service, parses the stream into structs
+// and makes the data stream available for analysis.
 func (r *RisLive) Listen() <span class="cov0" title="0">{
         var body io.ReadCloser
         switch len(*risFile) == 0 </span>{
