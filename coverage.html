@@ -210,6 +210,7 @@ func (r *RisLive) Listen() <span class="cov0" title="0">{
                                 prefix = m.Announcements[0].Prefixes[0]
                         }</span>
                 }
+                // TODO(morrowc): insert validation/alerting checks here.
                 <span class="cov0" title="0">fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", i, m.Peer, m.PeerASN, prefix)
                 i++</span>
         }
