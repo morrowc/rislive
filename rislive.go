@@ -20,13 +20,16 @@ var (
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
+	Url    *string
+	File   *string
+	UA     *string
 	Filter *RisFilter
 }
 
 // RisFilter is an object to hold content used to filter the collected BGP
 // routes before display to the caller.
 type RisFilter struct {
-	AsPath           []int32        // Asath: [701, 7018, 3356] a fragment of the aspath seen.
+	ASPath           []int32        // Asath: [701, 7018, 3356] a fragment of the aspath seen.
 	InvalidTransitAS map[int32]bool // {"701":true, "3356":true}.
 	Origins          []string       // A list of interesting origin ASH.
 	Prefix           []string       // Prefix: ["1.2.3.0/24", "2001:db8::/32"] a list of prefixes.
@@ -82,6 +85,15 @@ func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
 	return false
 }
 
+func (r *RisMessageData) CheckOrigins(origins []string) bool {
+	for _, origin := range origins {
+		if r.Origin == origin {
+			return true
+		}
+	}
+	return false
+}
+
 // RisAnnouncement is a struct which holds the prefixes contained in the single Bgp Message.
 type RisAnnouncement struct {
 	NextHop  string   `json:"next_hop"`
@@ -101,25 +113,45 @@ func (r *RisAnnouncement) MatchPrefix(cs []string) bool {
 	return false
 }
 
+// NewRisFilter creates a new RisFilter struct.
+func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []string) *RisFilter {
+	return &RisFilter{
+		ASPath:           aspath,
+		InvalidTransitAS: transits,
+		Origins:          origins,
+		Prefix:           prefix,
+	}
+}
+
+// NewRisLive creates a new RisLive struct.
+func NewRisLive(url, file, ua *string, rf *RisFilter) *RisLive {
+	return &RisLive{
+		Url:    url,
+		File:   file,
+		UA:     ua,
+		Filter: rf,
+	}
+}
+
 // Listen connects to the RisLive service, parses the stream into structs
 // and makes the data stream available for analysis.
 func (r *RisLive) Listen() {
 	var body io.ReadCloser
-	switch len(*risFile) == 0 {
+	switch len(*r.File) == 0 {
 	case true:
 		client := &http.Client{}
-		req, err := http.NewRequest("GET", "https://ris-live.ripe.net/v1/stream/?format=json", nil)
+		req, err := http.NewRequest("GET", *r.Url, nil)
 		if err != nil {
 			fmt.Printf("failed to create new request to ris-live: %v\n", err)
 		}
-		req.Header.Set("User-Agent", *risClient)
+		req.Header.Set("User-Agent", *r.UA)
 		resp, err := client.Do(req)
 		defer resp.Body.Close()
 		body = resp.Body
-	case false:
-		fd, err := ioutil.ReadFile(*risFile)
+	default:
+		fd, err := ioutil.ReadFile(*r.File)
 		if err != nil {
-			fmt.Printf("failed to read risFile(%v): %v\n", *risFile, err)
+			fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
 		}
 		body = ioutil.NopCloser(bytes.NewReader(fd))
 	}
@@ -136,14 +168,64 @@ func (r *RisLive) Listen() {
 			return
 		}
 
-		m := rm.Data
+		rmd := rm.Data
 		prefix := ""
-		if len(m.Announcements) > 0 {
-			if len(m.Announcements[0].Prefixes) > 0 {
-				prefix = m.Announcements[0].Prefixes[0]
+		if len(rmd.Announcements) > 0 {
+			if len(rmd.Announcements[0].Prefixes) > 0 {
+				prefix = rmd.Announcements[0].Prefixes[0]
 			}
 		}
-		fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", i, m.Peer, m.PeerASN, prefix)
+		fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", i, rmd.Peer, rmd.PeerASN, prefix)
 		i++
 	}
+}
+
+// CheckASPath checks the filterable ASPath, if it's set.
+// If not set, always return true.
+func (r *RisLive) CheckASPath(rm *RisMessageData) bool {
+	if len(r.Filter.ASPath) > 0 {
+		return rm.MatchASPath(r.Filter.ASPath)
+	}
+	return true
+}
+
+// CheckInvalidTransitAS checks to see if there is a marked invalid ASN in the as-path.
+// If there is no map, this check returns false: there is nothing to match, so no match.
+func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool {
+	if len(r.Filter.InvalidTransitAS) > 0 {
+		return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
+	}
+	return false
+}
+
+// CheckOrigins checks the inbound message origin against a list of possible origins.
+// If there is no list of origins, return true: no match means show all origins.
+func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
+	if len(r.Filter.Origins) > 0 {
+		return rm.CheckOrigins(r.Filter.Origins)
+	}
+	return true
+}
+
+// CheckPrefix will check each announcement in a message, and return true
+// if there is a prefix in the message that matches the watched prefixes.
+// These are exact matches of strings, there is no super/subnet/covering route
+// check being performed, ie:
+//   192.168.0.0/16 vs 192.168.0.0/16 - match
+//   192.168.0.0/16 vs 192.168.0.0/24 - no match
+// TODO(morrowc): Provide super/subnet verification of each announced prefix
+// to the requestors list of supernets.
+func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
+	if len(r.Filter.Prefix) > 0 {
+		for _, anns := range rm.Announcements {
+			for _, prefix := range anns.Prefixes {
+				for _, check := range r.Filter.Prefix {
+					if prefix == check {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return true
 }

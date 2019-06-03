@@ -150,3 +150,34 @@ func TestInvalidTransitAS(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckASPath(t *testing.T) {
+	tests := []struct {
+		desc string
+		rl   *RisLive
+		data *RisMessageData
+		want bool
+	}{{
+		desc: "Success - second element",
+		rl:   &RisLive{Filter: &RisFilter{ASPath: []int32{57695, 12}}},
+		data: &RisMessageData{Path: []int32{57695, 12, 2332}},
+		want: true,
+	}, {
+		desc: "Success - zero matches",
+		rl:   &RisLive{Filter: &RisFilter{ASPath: []int32{57695, 12}}},
+		data: &RisMessageData{Path: []int32{57695, 128, 2332}},
+		want: false,
+	}, {
+		desc: "Success - zero to match",
+		rl:   &RisLive{Filter: &RisFilter{ASPath: []int32{}}},
+		data: &RisMessageData{Path: []int32{5769, 128, 2332}},
+		want: true,
+	}}
+
+	for _, test := range tests {
+		got := test.rl.CheckASPath(test.data)
+		if got != test.want {
+			t.Errorf("[%v]: got/want mismatch, wanted: %v got: %v", test.desc, test.want, got)
+		}
+	}
+}
