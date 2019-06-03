@@ -107,10 +107,13 @@ func (r *RisLive) Listen() {
 	var body io.ReadCloser
 	switch len(*risFile) == 0 {
 	case true:
-		resp, err := http.Get("https://ris-live.ripe.net/v1/stream/?format=json")
+		client := &http.Client{}
+		req, err := http.NewRequest("GET", "https://ris-live.ripe.net/v1/stream/?format=json", nil)
 		if err != nil {
-			fmt.Printf("failed to connect to ris-live: %v\n", err)
+			fmt.Printf("failed to create new request to ris-live: %v\n", err)
 		}
+		req.Header.Set("User-Agent", *risClient)
+		resp, err := client.Do(req)
 		defer resp.Body.Close()
 		body = resp.Body
 	case false:
