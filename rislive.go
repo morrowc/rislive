@@ -20,10 +20,12 @@ var (
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
-	Url    *string
-	File   *string
-	UA     *string
-	Filter *RisFilter
+	Url     *string
+	File    *string
+	UA      *string
+	Filter  *RisFilter
+	Records int64
+	Chan    chan RisMessage
 }
 
 // RisFilter is an object to hold content used to filter the collected BGP
@@ -126,10 +128,12 @@ func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []str
 // NewRisLive creates a new RisLive struct.
 func NewRisLive(url, file, ua *string, rf *RisFilter) *RisLive {
 	return &RisLive{
-		Url:    url,
-		File:   file,
-		UA:     ua,
-		Filter: rf,
+		Url:     url,
+		File:    file,
+		UA:      ua,
+		Filter:  rf,
+		Records: 0,
+		Chan:    make(chan (RisMessage), 1000),
 	}
 }
 
@@ -167,7 +171,15 @@ func (r *RisLive) Listen() {
 			fmt.Printf("bad json content: %v\n", rm)
 			return
 		}
+		r.Records++
+		r.Chan <- rm
+	}
+}
 
+// Get collects
+func (r *RisLive) Get(f *RisFilter) chan RisMessage {
+	for {
+		rm := <-r.Chan
 		rmd := rm.Data
 		prefix := ""
 		if len(rmd.Announcements) > 0 {
@@ -176,7 +188,6 @@ func (r *RisLive) Listen() {
 			}
 		}
 		fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", i, rmd.Peer, rmd.PeerASN, prefix)
-		i++
 	}
 }
 
