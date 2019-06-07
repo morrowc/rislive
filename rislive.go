@@ -162,7 +162,6 @@ func (r *RisLive) Listen() {
 
 	dec := json.NewDecoder(body)
 
-	i := 0
 	var rm RisMessage
 	for dec.More() {
 		err := dec.Decode(&rm)
@@ -187,7 +186,7 @@ func (r *RisLive) Get(f *RisFilter) chan RisMessage {
 				prefix = rmd.Announcements[0].Prefixes[0]
 			}
 		}
-		fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", i, rmd.Peer, rmd.PeerASN, prefix)
+		fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
 	}
 }
 
