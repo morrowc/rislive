@@ -246,46 +246,47 @@ func (r *RisLive) Listen() {
         }
 }
 
-// Get collects
-func </span><span class="cov0" title="0">(r *RisLive) Get(f *RisFilter) chan RisMessage {
+// Get collects messages from the RisLive.Chan chann<span class="cov0" title="0">el and filters results prior
+// to</span><span class="cov0" title="0"> display or handling downstream.
+func (r *RisLive) Get(f *RisFilter) chan RisMessage {
         for {
                 rm := &lt;-r.Chan
                 rmd := rm.Data
-                prefix := ""
+</span>                prefix := ""
 </span>                if len(rmd.Announcements) &gt; 0 {
-</span>                        if len(rmd.Announcements[0].Prefixes) &gt; 0 {
-                                </span>prefix = rmd.Announcements[0].Prefixes[0]
-                        }
-                <span class="cov0" title="0">}
-</span>                fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
+                        i</span>f len(rmd.Announcements[0].Prefixes) &gt; 0 {
+                                prefix = rmd.Announcements[0].Prefixes[0]
+                <span class="cov0" title="0">        }
+</span>                }
+                fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
         }
 }
 
-// CheckASPath checks the filterable ASPath, if it's set.
-// If not set, always return true.
-func (r *RisLive) CheckASPath</span><span class="cov8" title="1">(rm *RisMessageData) bool {
-        if len(r.Filter.ASPath) &gt; 0 {
-                </span>return rm.MatchASPath(r.Filter.ASPath)
-        <span class="cov8" title="1">}
-</span>        return true
+// CheckASPath checks the filterable ASPath, if it's se<span class="cov8" title="1">t.
+// If not set, always return </span><span class="cov8" title="1">true.
+func (r *RisLive) CheckASPath(rm *RisMessageData) bool {
+        i</span>f len(r.Filter.ASPath) &gt; 0 {
+        <span class="cov8" title="1">        return rm.</span>MatchASPath(r.Filter.ASPath)
+        }
+        return true
 }
 
-// CheckInvalidTransitAS checks to see if there is a marked invalid ASN in the as-path.
-// If there is no map, this check returns false: there is nothing<span class="cov0" title="0"> to match, so no match.
-func (r *RisLive) CheckInvalidTransitAS</span><span class="cov0" title="0">(rm *RisMessageData) bool {
-        if len(r.Filter.InvalidTransitAS) &gt; 0 {
-                </span>return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
-        <span class="cov0" title="0">}
-</span>        return false
+// CheckInvalidTransitAS checks to see if there is a marked inval<span class="cov0" title="0">id ASN in the as-path.
+// If there is no map, this check retur</span><span class="cov0" title="0">ns false: there is nothing to match, so no match.
+func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool {
+        i</span>f len(r.Filter.InvalidTransitAS) &gt; 0 {
+        <span class="cov0" title="0">        return rm.I</span>nvalidTransitAS(r.Filter.InvalidTransitAS)
+        }
+        return false
 }
 
-// CheckOrigins checks the inbound message origin against a list of possible origins.
-// If there is no list of origins, return true: no match<span class="cov0" title="0"> means show all origins.
-func (r *RisLive) CheckOrigins</span><span class="cov0" title="0">(rm *RisMessageData) bool {
-        if len(r.Filter.Origins) &gt; 0 {
-                </span>return rm.CheckOrigins(r.Filter.Origins)
-        <span class="cov0" title="0">}
-</span>        return true
+// CheckOrigins checks the inbound message origin agains<span class="cov0" title="0">t a list of possible origins.
+// If there is no list of orig</span><span class="cov0" title="0">ins, return true: no match means show all origins.
+func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
+        i</span>f len(r.Filter.Origins) &gt; 0 {
+        <span class="cov0" title="0">        return rm.</span>CheckOrigins(r.Filter.Origins)
+        }
+        return true
 }
 
 // CheckPrefix will check each announcement in a message, and return true
@@ -294,21 +295,21 @@ func (r *RisLive) CheckOrigins</span><span class="cov0" title="0">(rm *RisMessag
 // check being performed, ie:
 //   192.168.0.0/16 vs 192.168.0.0/16 - match
 //   192.168.0.0/16 vs 192.168.0.0/24 - no match
-// TODO(morrowc): Provide super/subnet verification of each announced prefix
-// to the requestors list of supernets.
-func (r *RisLive) CheckPrefix</span><span class="cov0" title="0">(rm *RisMessageData) bool {
+// TODO(morrowc): Provide super/subnet verification of <span class="cov0" title="0">each announced prefix
+// to the requestors list of </span><span class="cov0" title="0">supernets.
+func (r *RisLive) CheckPrefix(rm *RisMes</span><span class="cov0" title="0">sageData) bool {
         if len(r.Filter.Prefix) &gt; 0 {
-</span>                for _, anns := range rm.Announcements </span><span class="cov0" title="0">{
-                        for _, prefix := range anns.Prefixes {
-</span>                                for _, check := rang</span><span class="cov0" title="0">e r.Filter.Prefix {
-                                        if prefix == check {
-                                                </span>return true
+</span>                for _, anns := range rm.Announcements {
+</span>                        for _, prefix := rang</span><span class="cov0" title="0">e anns.Prefixes {
+                                for _, check := range r.Filter.Prefix {
+                                        i</span>f prefix == check {
+                                                return true
                                         }
                                 }
                         }
-                }
-        <span class="cov0" title="0">}
-</span>        return true
+        <span class="cov0" title="0">        }
+</span>        }
+        return true
 }
 </pre>
 
