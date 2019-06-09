@@ -1,20 +1,21 @@
+// Package rislive implements a service to listen to the RIPE RIS Live service,
+// Messages from RIS Live are parsed and sent to a channel for use be clients.
+// There are filter capabilities for clients:
+//  ASPaths - monitor for prefixes matching an as-path fragment (slice)
+//  InvalidTransitAS - monitor for prefixes transiting an AS that shouldn't transit that AS. (map)
+//  Origins - monitor for prefixes with designated origins (slice)
+//  Prefix - monitor for a designated set of prefixes (slice)
+//
 package rislive
 
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"reflect"
-)
-
-var (
-	risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
-	risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
-	risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
 )
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
@@ -126,19 +127,19 @@ func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []str
 }
 
 // NewRisLive creates a new RisLive struct.
-func NewRisLive(url, file, ua *string, rf *RisFilter) *RisLive {
+func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 	return &RisLive{
 		Url:     url,
 		File:    file,
 		UA:      ua,
 		Filter:  rf,
 		Records: 0,
-		Chan:    make(chan (RisMessage), 1000),
+		Chan:    make(chan (RisMessage), buffer),
 	}
 }
 
 // Listen connects to the RisLive service, parses the stream into structs
-// and makes the data stream available for analysis.
+// and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
 	var body io.ReadCloser
 	switch len(*r.File) == 0 {

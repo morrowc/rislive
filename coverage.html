@@ -68,23 +68,24 @@
 		</div>
 		<div id="content">
 
-		<pre class="file" id="file0" style="display: none">package rislive
+		<pre class="file" id="file0" style="display: none">// Package rislive implements a service to listen to the RIPE RIS Live service,
+// Messages from RIS Live are parsed and sent to a channel for use be clients.
+// There are filter capabilities for clients:
+//  ASPaths - monitor for prefixes matching an as-path fragment (slice)
+//  InvalidTransitAS - monitor for prefixes transiting an AS that shouldn't transit that AS. (map)
+//  Origins - monitor for prefixes with designated origins (slice)
+//  Prefix - monitor for a designated set of prefixes (slice)
+//
+package rislive
 
 import (
         "bytes"
         "encoding/json"
-        "flag"
         "fmt"
         "io"
         "io/ioutil"
         "net/http"
         "reflect"
-)
-
-var (
-        risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
-        risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
-        risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
 )
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
@@ -128,42 +129,42 @@ type RisMessageData struct {
         Raw           string             `json:"raw"`
 }
 
-// MatchASPath matches a fragment of an aspath with an as-path in an announcement.
-func (r *RisMessageData) MatchASPath(c []int32) bool <span class="cov8" title="1">{
+// MatchASPath matches a fragment of an aspath with a<span class="cov8" title="1">n as-path in an announcement.
+func (r *RisMessageData) MatchASPath(c []int32) bool {
         cLen := len(c)
-        // If the announcement's aspath is shorter than the candidate, no match is possible.
-        if len(r.Path) &lt; cLen </span><span class="cov8" title="1">{
-                return false
-        }</span>
-        // Slide the candidate along the announcement path checking for a match.
-        <span class="cov8" title="1">for i := 0; i+cLen &lt; len(r.Path); i++ </span><span class="cov8" title="1">{
-                frag := r.Path[i:(i + cLen)]
-                if reflect.DeepEqual(frag, c) </span><span class="cov8" title="1">{
-                        return true
-                }</span>
+        // If the announcement</span><span class="cov8" title="1">'s aspath is shorter than the candidate, no match is possible.
+        if len(r.Path) &lt; cLen {
+                </span>return false
         }
-        <span class="cov8" title="1">return false</span>
+        <span class="cov8" title="1">// Slide the candidate along the annou</span><span class="cov8" title="1">ncement path checking for a match.
+        for i := 0; i+cLen &lt; len(r.Path); i++ {
+                frag := r.Path[i:(i + cLen)]
+</span>                if reflect.DeepEqual(frag, c) {
+                        </span>return true
+                }
+        <span class="cov8" title="1">}
+</span>        return false
 }
 
 // InvalidTransitAS matches a set of ASN in the RisMessageData.Path, returning true if
 // there is a match in the Path. This should be used to alert on invalid paths seen, paths
 // which do not match intent/expectations of the announcing ASN.
-func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool <span class="cov8" title="1">{
-        for _, p := range r.Path </span><span class="cov8" title="1">{
-                if c[p] </span><span class="cov8" title="1">{
-                        return true
-                }</span>
-        }
-        <span class="cov8" title="1">return false</span>
+func (r *RisMessageData) I</span><span class="cov8" title="1">nvalidTransitAS(c map[int32]bool) bool {
+        for _, p </span><span class="cov8" title="1">:= range r.Path {
+                if c[p] {
+                        </span>return true
+                }
+        <span class="cov8" title="1">}
+</span>        return false
 }
 
-func (r *RisMessageData) CheckOrigins(origins []string) bool <span class="cov0" title="0">{
-        for _, origin := range origins </span><span class="cov0" title="0">{
-                if r.Origin == origin </span><span class="cov0" title="0">{
-                        return true
-                }</span>
-        }
-        <span class="cov0" title="0">return false</span>
+func (r *RisMessageData) CheckOr</span><span class="cov0" title="0">igins(origins []string) bool {
+        for _, origin := range </span><span class="cov0" title="0">origins {
+                if r.Origin == origin {
+                        </span>return true
+                }
+        <span class="cov0" title="0">}
+</span>        return false
 }
 
 // RisAnnouncement is a struct which holds the prefixes contained in the single Bgp Message.
@@ -173,118 +174,118 @@ type RisAnnouncement struct {
 }
 
 // MatchPrefix matches a list of prefixes against an announcement's included prefixes.
-// Is an exact match, does not implement any super/subnet matching conditions.
-func (r *RisAnnouncement) MatchPrefix(cs []string) bool <span class="cov8" title="1">{
-        for _, c := range cs </span><span class="cov8" title="1">{
-                for _, p := range r.Prefixes </span><span class="cov8" title="1">{
-                        if c == p </span><span class="cov8" title="1">{
-                                return true
-                        }</span>
+// Is an exact match, does not implement any super/subne<span class="cov8" title="1">t matching conditions.
+func (r *RisAnnounceme</span><span class="cov8" title="1">nt) MatchPrefix(cs []string) bool {
+        for _, c := range cs {
+</span>                for _, p :=</span><span class="cov8" title="1"> range r.Prefixes {
+                        if c == p {
+                                </span>return true
+                        }
                 }
-        }
-        <span class="cov8" title="1">return false</span>
+        <span class="cov8" title="1">}
+</span>        return false
 }
 
 // NewRisFilter creates a new RisFilter struct.
-func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []string) *RisFilter <span class="cov0" title="0">{
+func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []string) *RisFilter {
         return &amp;RisFilter{
                 ASPath:           aspath,
                 InvalidTransitAS: transits,
                 Origins:          origins,
                 Prefix:           prefix,
-        }
-}</span>
+        </span>}
+}
 
 // NewRisLive creates a new RisLive struct.
-func NewRisLive(url, file, ua *string, rf *RisFilter) *RisLive <span class="cov0" title="0">{
+func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
         return &amp;RisLive{
                 Url:     url,
                 File:    file,
                 UA:      ua,
                 Filter:  rf,
                 Records: 0,
-                Chan:    make(chan (RisMessage), 1000),
-        }
-}</span>
+                Chan:    make(chan (RisMessage), buffer),
+        </span>}
+}
 
 // Listen connects to the RisLive service, parses the stream into structs
-// and makes the data stream available for analysis.
-func (r *RisLive) Listen() <span class="cov0" title="0">{
+// and makes the data strea<span class="cov0" title="0">m available for analysis through the RisLive.Chan channel.
+func (r *RisLive) Listen() {
         var body io.ReadCloser
-        switch len(*r.File) == 0 </span>{
-        case true:<span class="cov0" title="0">
+</span>        switch len<span class="cov0" title="0">(*r.File) == 0 {
+        case true:
                 client := &amp;http.Client{}
-                req, err := http.NewRequest("GET", *r.Url, nil)
-                if err != nil </span><span class="cov0" title="0">{
-                        fmt.Printf("failed to create new request to ris-live: %v\n", err)
-                }</span>
-                <span class="cov0" title="0">req.Header.Set("User-Agent", *r.UA)
+                req, err := ht</span><span class="cov0" title="0">tp.NewRequest("GET", *r.Url, nil)
+                if err != nil {
+                        </span>fmt.Printf("failed to create new request to ris-live: %v\n", err)
+                <span class="cov0" title="0">}
+                req.Header.Set("User-Agent", *r.UA)
                 resp, err := client.Do(req)
-                defer resp.Body.Close()
-                body = resp.Body</span>
-        default:<span class="cov0" title="0">
-                fd, err := ioutil.ReadFile(*r.File)
-                if err != nil </span><span class="cov0" title="0">{
-                        fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
-                }</span>
-                <span class="cov0" title="0">body = ioutil.NopCloser(bytes.NewReader(fd))</span>
+                defer resp.Body.</span>Close()
+                body = <span class="cov0" title="0">resp.Body
+        default:
+                fd, err := iou</span><span class="cov0" title="0">til.ReadFile(*r.File)
+                if err != nil {
+                        </span>fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
+                <span class="cov0" title="0">}
+</span>                body = ioutil.NopCloser(bytes.NewReader(fd))
         }
 
-        <span class="cov0" title="0">dec := json.NewDecoder(body)
+        dec := json.NewDecoder(body)
 
-        var rm RisMessage
-        for dec.More() </span><span class="cov0" title="0">{
-                err := dec.Decode(&amp;rm)
-                if err != nil </span><span class="cov0" title="0">{
+        var rm RisMessa</span><span class="cov0" title="0">ge
+        for dec.More() {
+                err := dec.Dec</span><span class="cov0" title="0">ode(&amp;rm)
+                if err != nil {
                         fmt.Printf("failed to decode json: %v\n", err)
                         fmt.Printf("bad json content: %v\n", rm)
-                        return
-                }</span>
-                <span class="cov0" title="0">r.Records++
-                r.Chan &lt;- rm</span>
+                        </span>return
+                <span class="cov0" title="0">}
+                r.Records++
+</span>                r.Chan &lt;- rm
         }
 }
 
 // Get collects
-func (r *RisLive) Get(f *RisFilter) chan RisMessage <span class="cov0" title="0">{
-        for </span><span class="cov0" title="0">{
+func </span><span class="cov0" title="0">(r *RisLive) Get(f *RisFilter) chan RisMessage {
+        for {
                 rm := &lt;-r.Chan
                 rmd := rm.Data
                 prefix := ""
-                if len(rmd.Announcements) &gt; 0 </span><span class="cov0" title="0">{
-                        if len(rmd.Announcements[0].Prefixes) &gt; 0 </span><span class="cov0" title="0">{
-                                prefix = rmd.Announcements[0].Prefixes[0]
-                        }</span>
-                }
-                <span class="cov0" title="0">fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)</span>
+</span>                if len(rmd.Announcements) &gt; 0 {
+</span>                        if len(rmd.Announcements[0].Prefixes) &gt; 0 {
+                                </span>prefix = rmd.Announcements[0].Prefixes[0]
+                        }
+                <span class="cov0" title="0">}
+</span>                fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
         }
 }
 
 // CheckASPath checks the filterable ASPath, if it's set.
 // If not set, always return true.
-func (r *RisLive) CheckASPath(rm *RisMessageData) bool <span class="cov8" title="1">{
-        if len(r.Filter.ASPath) &gt; 0 </span><span class="cov8" title="1">{
-                return rm.MatchASPath(r.Filter.ASPath)
-        }</span>
-        <span class="cov8" title="1">return true</span>
+func (r *RisLive) CheckASPath</span><span class="cov8" title="1">(rm *RisMessageData) bool {
+        if len(r.Filter.ASPath) &gt; 0 {
+                </span>return rm.MatchASPath(r.Filter.ASPath)
+        <span class="cov8" title="1">}
+</span>        return true
 }
 
 // CheckInvalidTransitAS checks to see if there is a marked invalid ASN in the as-path.
-// If there is no map, this check returns false: there is nothing to match, so no match.
-func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool <span class="cov0" title="0">{
-        if len(r.Filter.InvalidTransitAS) &gt; 0 </span><span class="cov0" title="0">{
-                return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
-        }</span>
-        <span class="cov0" title="0">return false</span>
+// If there is no map, this check returns false: there is nothing<span class="cov0" title="0"> to match, so no match.
+func (r *RisLive) CheckInvalidTransitAS</span><span class="cov0" title="0">(rm *RisMessageData) bool {
+        if len(r.Filter.InvalidTransitAS) &gt; 0 {
+                </span>return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
+        <span class="cov0" title="0">}
+</span>        return false
 }
 
 // CheckOrigins checks the inbound message origin against a list of possible origins.
-// If there is no list of origins, return true: no match means show all origins.
-func (r *RisLive) CheckOrigins(rm *RisMessageData) bool <span class="cov0" title="0">{
-        if len(r.Filter.Origins) &gt; 0 </span><span class="cov0" title="0">{
-                return rm.CheckOrigins(r.Filter.Origins)
-        }</span>
-        <span class="cov0" title="0">return true</span>
+// If there is no list of origins, return true: no match<span class="cov0" title="0"> means show all origins.
+func (r *RisLive) CheckOrigins</span><span class="cov0" title="0">(rm *RisMessageData) bool {
+        if len(r.Filter.Origins) &gt; 0 {
+                </span>return rm.CheckOrigins(r.Filter.Origins)
+        <span class="cov0" title="0">}
+</span>        return true
 }
 
 // CheckPrefix will check each announcement in a message, and return true
@@ -295,19 +296,19 @@ func (r *RisLive) CheckOrigins(rm *RisMessageData) bool <span class="cov0" title
 //   192.168.0.0/16 vs 192.168.0.0/24 - no match
 // TODO(morrowc): Provide super/subnet verification of each announced prefix
 // to the requestors list of supernets.
-func (r *RisLive) CheckPrefix(rm *RisMessageData) bool <span class="cov0" title="0">{
-        if len(r.Filter.Prefix) &gt; 0 </span><span class="cov0" title="0">{
-                for _, anns := range rm.Announcements </span><span class="cov0" title="0">{
-                        for _, prefix := range anns.Prefixes </span><span class="cov0" title="0">{
-                                for _, check := range r.Filter.Prefix </span><span class="cov0" title="0">{
-                                        if prefix == check </span><span class="cov0" title="0">{
-                                                return true
-                                        }</span>
+func (r *RisLive) CheckPrefix</span><span class="cov0" title="0">(rm *RisMessageData) bool {
+        if len(r.Filter.Prefix) &gt; 0 {
+</span>                for _, anns := range rm.Announcements </span><span class="cov0" title="0">{
+                        for _, prefix := range anns.Prefixes {
+</span>                                for _, check := rang</span><span class="cov0" title="0">e r.Filter.Prefix {
+                                        if prefix == check {
+                                                </span>return true
+                                        }
                                 }
                         }
                 }
-        }
-        <span class="cov0" title="0">return true</span>
+        <span class="cov0" title="0">}
+</span>        return true
 }
 </pre>
 
