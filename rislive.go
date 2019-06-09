@@ -176,7 +176,8 @@ func (r *RisLive) Listen() {
 	}
 }
 
-// Get collects
+// Get collects messages from the RisLive.Chan channel and filters results prior
+// to display or handling downstream.
 func (r *RisLive) Get(f *RisFilter) chan RisMessage {
 	for {
 		rm := <-r.Chan
