@@ -6,11 +6,12 @@
 //  Origins - monitor for prefixes with designated origins (slice)
 //  Prefix - monitor for a designated set of prefixes (slice)
 //
-package rislive
+package main
 
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -134,7 +135,7 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 		UA:      ua,
 		Filter:  rf,
 		Records: 0,
-		Chan:    make(chan (RisMessage), buffer),
+		Chan:    make(chan (RisMessage), *buffer),
 	}
 }
 
@@ -142,8 +143,10 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
 	var body io.ReadCloser
+	// TODO(morrowc) This appears to not work as expected.
 	switch len(*r.File) == 0 {
 	case true:
+		fmt.Println("Heres a file read")
 		client := &http.Client{}
 		req, err := http.NewRequest("GET", *r.Url, nil)
 		if err != nil {
@@ -188,7 +191,12 @@ func (r *RisLive) Get(f *RisFilter) chan RisMessage {
 				prefix = rmd.Announcements[0].Prefixes[0]
 			}
 		}
-		fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
+		if r.CheckASPath(rmd) || r.CheckInvalidTransitAS(rmd) ||
+			r.CheckOrigins(rmd) || r.CheckPrefix(rmd) {
+			fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
+		} else {
+			fmt.Printf("Skipped message for %s \n", prefix)
+		}
 	}
 }
 
@@ -240,4 +248,19 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 		}
 	}
 	return true
+}
+
+var (
+	risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
+	risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
+	risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
+	buffer    = flag.Int("buffer", 1000, "Max depth of Ris messages to queue.")
+)
+
+func main() {
+	rf := &RisFilter{Prefix: []string{"130.137.85.0/24", "199.168.88.0/22", "8.8.8.0/24", "8.8.4.0/24", "216.239.32.0/19"}}
+	r := NewRisLive(risLive, risFile, risClient, rf, buffer)
+
+	go r.Listen()
+	_ = r.Get(r.Filter)
 }

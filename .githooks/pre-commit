@@ -47,9 +47,9 @@ fi
 
 #
 # Run git coverage html creation, if the files changed include .go files.
-if test $(git diff --cached --name-only | grep "\.go$" | grep -v "\.pb.go$" | grep -v examples/ | grep -v "\.git/" | wc -l) != 0
+if test $(git diff --cached --name-only | grep "\.go$" | grep -v "\.pb.go$" | egrep -v '(examples|client)/' | grep -v "\.git/" | wc -l) != 0
 then
-  # Select a single director with golang files being changed.
+  # Select a single directory with golang files being changed.
   # change to that directory and create the coverage data/report.
   SINGLEFILE=$(git diff --name-only --cached | grep \.go$ | head -1)
   GODIR=$(dirname ${SINGLEFILE})

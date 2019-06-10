@@ -76,11 +76,12 @@
 //  Origins - monitor for prefixes with designated origins (slice)
 //  Prefix - monitor for a designated set of prefixes (slice)
 //
-package rislive
+package main
 
 import (
         "bytes"
         "encoding/json"
+        "flag"
         "fmt"
         "io"
         "io/ioutil"
@@ -129,42 +130,42 @@ type RisMessageData struct {
         Raw           string             `json:"raw"`
 }
 
-// MatchASPath matches a fragment of an aspath with a<span class="cov8" title="1">n as-path in an announcement.
+// MatchASPath matches a fragment of an aspath with an as-path in an announcement.
 func (r *RisMessageData) MatchASPath(c []int32) bool {
         cLen := len(c)
-        // If the announcement</span><span class="cov8" title="1">'s aspath is shorter than the candidate, no match is possible.
-        if len(r.Path) &lt; cLen {
-                </span>return false
-        }
-        <span class="cov8" title="1">// Slide the candidate along the annou</span><span class="cov8" title="1">ncement path checking for a match.
-        for i := 0; i+cLen &lt; len(r.Path); i++ {
-                frag := r.Path[i:(i + cLen)]
-</span>                if reflect.DeepEqual(frag, c) {
-                        </span>return true
-                }
+</span>        // If the announcement's aspath is shorter than the candidate, no match is possible.
+        i</span>f len(r.Path) &lt; cLen {
+                return false
         <span class="cov8" title="1">}
-</span>        return false
+</span>        // Slide the candidate along the announcement path checking for a match.
+        for i := 0; i+cLen &lt; len(r.Path</span><span class="cov8" title="1">); i++ {
+                frag := r.Path[i:(i + cLen)]
+                i</span>f reflect.DeepEqual(frag, c) {
+                        return true
+        <span class="cov8" title="1">        }
+</span>        }
+        return false
 }
 
 // InvalidTransitAS matches a set of ASN in the RisMessageData.Path, returning true if
-// there is a match in the Path. This should be used to alert on invalid paths seen, paths
-// which do not match intent/expectations of the announcing ASN.
-func (r *RisMessageData) I</span><span class="cov8" title="1">nvalidTransitAS(c map[int32]bool) bool {
-        for _, p </span><span class="cov8" title="1">:= range r.Path {
-                if c[p] {
-                        </span>return true
-                }
-        <span class="cov8" title="1">}
-</span>        return false
+// there is a match in the Path. This should be used to alert on <span class="cov8" title="1">invalid paths seen, paths
+// which do not match inte</span><span class="cov8" title="1">nt/expectations of the announcing ASN.
+func (r *R</span><span class="cov8" title="1">isMessageData) InvalidTransitAS(c map[int32]bool) bool {
+        for _, p := range r.Path {
+                i</span>f c[p] {
+                        return true
+        <span class="cov8" title="1">        }
+</span>        }
+        return false
 }
 
-func (r *RisMessageData) CheckOr</span><span class="cov0" title="0">igins(origins []string) bool {
-        for _, origin := range </span><span class="cov0" title="0">origins {
-                if r.Origin == origin {
-                        </span>return true
-                }
-        <span class="cov0" title="0">}
-</span>        return false
+</span>func (r *RisMessageData)</span><span class="cov0" title="0"> CheckOrigins(origins []string) bool {
+        for _, origin := range origins {
+                i</span>f r.Origin == origin {
+                        return true
+        <span class="cov0" title="0">        }
+</span>        }
+        return false
 }
 
 // RisAnnouncement is a struct which holds the prefixes contained in the single Bgp Message.
@@ -173,17 +174,17 @@ type RisAnnouncement struct {
         Prefixes []string `json:"prefixes"`
 }
 
-// MatchPrefix matches a list of prefixes against an announcement's included prefixes.
-// Is an exact match, does not implement any super/subne<span class="cov8" title="1">t matching conditions.
-func (r *RisAnnounceme</span><span class="cov8" title="1">nt) MatchPrefix(cs []string) bool {
-        for _, c := range cs {
-</span>                for _, p :=</span><span class="cov8" title="1"> range r.Prefixes {
-                        if c == p {
-                                </span>return true
+// MatchPrefix matches a list of prefixes against an ann<span class="cov8" title="1">ouncement's included prefixes.
+// Is an exact match, </span><span class="cov8" title="1">does not implement any super/subnet matching conditions.
+func (r *RisAnnouncement) Match</span><span class="cov8" title="1">Prefix(cs []string) bool {
+        for _, c := </span><span class="cov8" title="1">range cs {
+                for _, p := range r.Prefixes {
+                        i</span>f c == p {
+                                return true
                         }
-                }
-        <span class="cov8" title="1">}
-</span>        return false
+        <span class="cov8" title="1">        }
+</span>        }
+        return false
 }
 
 // NewRisFilter creates a new RisFilter struct.
@@ -192,8 +193,8 @@ func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []str
                 ASPath:           aspath,
                 InvalidTransitAS: transits,
                 Origins:          origins,
-                Prefix:           prefix,
-        </span>}
+        </span>        Prefix:           prefix,
+        }
 }
 
 // NewRisLive creates a new RisLive struct.
@@ -204,112 +205,134 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
                 UA:      ua,
                 Filter:  rf,
                 Records: 0,
-                Chan:    make(chan (RisMessage), buffer),
-        </span>}
+        </span>        Chan:    make(chan (RisMessage), *buffer),
+        }
 }
 
-// Listen connects to the RisLive service, parses the stream into structs
-// and makes the data strea<span class="cov0" title="0">m available for analysis through the RisLive.Chan channel.
-func (r *RisLive) Listen() {
-        var body io.ReadCloser
-</span>        switch len<span class="cov0" title="0">(*r.File) == 0 {
+// Listen connects to the R<span class="cov0" title="0">isLive service, parses the stream into structs
+// and makes the data stream available for analysis through the RisLive.Chan channel.
+func (r *RisLive) Listen()</span> {
+        var body i<span class="cov0" title="0">o.ReadCloser
+        // TODO(morrowc) This appears to not work as expected.
+        switch len(*r.File) == 0 {
         case true:
-                client := &amp;http.Client{}
-                req, err := ht</span><span class="cov0" title="0">tp.NewRequest("GET", *r.Url, nil)
+</span>                fmt.Println("Heres a file read")
+                c</span>lient := &amp;http.Client{}
+                <span class="cov0" title="0">req, err := http.NewRequest("GET", *r.Url, nil)
                 if err != nil {
-                        </span>fmt.Printf("failed to create new request to ris-live: %v\n", err)
-                <span class="cov0" title="0">}
-                req.Header.Set("User-Agent", *r.UA)
+                        fmt.Printf("failed to create new request to ris-live: %v\n", err)
+                }
+</span>                req.Hea<span class="cov0" title="0">der.Set("User-Agent", *r.UA)
                 resp, err := client.Do(req)
-                defer resp.Body.</span>Close()
-                body = <span class="cov0" title="0">resp.Body
-        default:
-                fd, err := iou</span><span class="cov0" title="0">til.ReadFile(*r.File)
-                if err != nil {
-                        </span>fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
-                <span class="cov0" title="0">}
-</span>                body = ioutil.NopCloser(bytes.NewReader(fd))
+                defer resp.Bod</span><span class="cov0" title="0">y.Close()
+                body = resp.Body
+        de</span>fault:
+                <span class="cov0" title="0">fd, err := ioutil.ReadFile(*r.File)
+</span>                if err != nil {
+                        fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
+        <span class="cov0" title="0">        }
+                body = ioutil.NopCloser(bytes.NewReader(fd))
         }
 
-        dec := json.NewDecoder(body)
+</span>        dec := json.NewDecoder(body)
 
-        var rm RisMessa</span><span class="cov0" title="0">ge
+</span>        var rm RisMessage
         for dec.More() {
-                err := dec.Dec</span><span class="cov0" title="0">ode(&amp;rm)
-                if err != nil {
-                        fmt.Printf("failed to decode json: %v\n", err)
-                        fmt.Printf("bad json content: %v\n", rm)
-                        </span>return
-                <span class="cov0" title="0">}
+                err := dec.Decode(&amp;rm)
+                i</span>f err != nil {
+                <span class="cov0" title="0">        fmt.Printf("failed to decode json: %v\n", err)
+                        fmt.Printf(</span>"bad json content: %v\n", rm)
+                        return
+                }
                 r.Records++
-</span>                r.Chan &lt;- rm
+                r.Chan &lt;- rm
         }
 }
-
-// Get collects messages from the RisLive.Chan chann<span class="cov0" title="0">el and filters results prior
-// to</span><span class="cov0" title="0"> display or handling downstream.
-func (r *RisLive) Get(f *RisFilter) chan RisMessage {
+</span>
+// Get collects messages from the RisLive.Chan channel and filters results prior
+// to display or handling downstream.
+func (r *RisLive) Get(f *RisFilt</span><span class="cov0" title="0">er) chan RisMessage {
         for {
-                rm := &lt;-r.Chan
-                rmd := rm.Data
-</span>                prefix := ""
-</span>                if len(rmd.Announcements) &gt; 0 {
-                        i</span>f len(rmd.Announcements[0].Prefixes) &gt; 0 {
+</span>                rm := &lt;-r.Chan
+                rm</span>d := rm.Data
+                prefix := ""
+                <span class="cov0" title="0">if len(rmd.Announcements) &gt; 0 {
+</span>                        if len(rmd.Announcements[0].Prefixes) &gt; 0 {
                                 prefix = rmd.Announcements[0].Prefixes[0]
-                <span class="cov0" title="0">        }
-</span>                }
-                fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
-        }
+                        }
+                }
+                if r.CheckASPath(rmd) || r.CheckInvalidTransitAS(rmd) ||
+                        r.CheckOrigins(rmd) || r.CheckPrefix(rmd) {
+                        fmt.Printf("Message(%d): P</span><span class="cov8" title="1">eer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
+                } else {
+                </span>        fmt.Printf("Skipped message for %s \n", prefix)
+        <span class="cov8" title="1">        }
+</span>        }
 }
 
-// CheckASPath checks the filterable ASPath, if it's se<span class="cov8" title="1">t.
-// If not set, always return </span><span class="cov8" title="1">true.
-func (r *RisLive) CheckASPath(rm *RisMessageData) bool {
-        i</span>f len(r.Filter.ASPath) &gt; 0 {
-        <span class="cov8" title="1">        return rm.</span>MatchASPath(r.Filter.ASPath)
-        }
-        return true
+// CheckASPath checks the filterable ASPath, if it's set.
+// If not set, always return true.
+func (r *RisLive) CheckASPath(rm *RisMe</span><span class="cov0" title="0">ssageData) bool {
+        if len(r.Filter.ASPath) &gt; 0 {
+                </span>return rm.MatchASPath(r.Filter.ASPath)
+        <span class="cov0" title="0">}
+</span>        return true
 }
 
-// CheckInvalidTransitAS checks to see if there is a marked inval<span class="cov0" title="0">id ASN in the as-path.
-// If there is no map, this check retur</span><span class="cov0" title="0">ns false: there is nothing to match, so no match.
-func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool {
-        i</span>f len(r.Filter.InvalidTransitAS) &gt; 0 {
-        <span class="cov0" title="0">        return rm.I</span>nvalidTransitAS(r.Filter.InvalidTransitAS)
-        }
-        return false
+// CheckInvalidTransitAS checks to see if there is a marked invalid ASN in the as-path.
+// If there is no map, this check returns false: there i<span class="cov0" title="0">s nothing to match, so no match.
+func (r *RisLive) CheckInvalid</span><span class="cov0" title="0">TransitAS(rm *RisMessageData) bool {
+        if len(r.Filter.InvalidTransitAS) &gt; 0 {
+                </span>return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
+        <span class="cov0" title="0">}
+</span>        return false
 }
 
-// CheckOrigins checks the inbound message origin agains<span class="cov0" title="0">t a list of possible origins.
-// If there is no list of orig</span><span class="cov0" title="0">ins, return true: no match means show all origins.
+// CheckOrigins checks the inbound message origin against a list of possible origins.
+// If there is no list of origins, return true: no match means show all origins.
 func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
-        i</span>f len(r.Filter.Origins) &gt; 0 {
-        <span class="cov0" title="0">        return rm.</span>CheckOrigins(r.Filter.Origins)
+        if len(r.Filter.Origins) &gt; 0 {
+                return rm.CheckOrigins(r.Filter.Origins)
         }
         return true
 }
 
-// CheckPrefix will check each announcement in a message, and return true
-// if there is a prefix in the message that matches the watched prefixes.
-// These are exact matches of strings, there is no super/subnet/covering route
-// check being performed, ie:
+</span>// CheckPrefix will check each announcem</span><span class="cov0" title="0">ent in a message, and return true
+// if there is a prefix in the message t</span><span class="cov0" title="0">hat matches the watched prefixes.
+// These are exact matches of strings, the</span><span class="cov0" title="0">re is no super/subnet/covering route
+// check being performed</span><span class="cov0" title="0">, ie:
 //   192.168.0.0/16 vs 192.168.0.0/16 - match
-//   192.168.0.0/16 vs 192.168.0.0/24 - no match
-// TODO(morrowc): Provide super/subnet verification of <span class="cov0" title="0">each announced prefix
-// to the requestors list of </span><span class="cov0" title="0">supernets.
-func (r *RisLive) CheckPrefix(rm *RisMes</span><span class="cov0" title="0">sageData) bool {
+//   1</span>92.168.0.0/16 vs 192.168.0.0/24 - no match
+// TODO(morrowc): Provide super/subnet verification of each announced prefix
+// to the requestors list of supernets.
+func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
         if len(r.Filter.Prefix) &gt; 0 {
-</span>                for _, anns := range rm.Announcements {
-</span>                        for _, prefix := rang</span><span class="cov0" title="0">e anns.Prefixes {
+        <span class="cov0" title="0">        for _, ann</span>s := range rm.Announcements {
+                        for _, prefix := range anns.Prefixes {
                                 for _, check := range r.Filter.Prefix {
-                                        i</span>f prefix == check {
+                                        if prefix == check {
                                                 return true
                                         }
                                 }
                         }
-        <span class="cov0" title="0">        }
-</span>        }
+                }
+        }
         return true
+}
+
+var (
+        risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
+        risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
+        risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
+        buffer    = flag.Int("buffer", 1000, "Max depth of Ris messages to queue.")
+)
+
+func main() {
+        rf := &amp;RisFilter{Prefix: []string{"130.137.85.0/24", "199.168.88.0/22", "8.8.8.0/24", "8.8.4.0/24", "216.239.32.0/19"}}
+        r := NewRisLive(risLive, risFile, risClient, rf, buffer)
+
+        go r.Listen()
+        _ = r.Get(r.Filter)
 }
 </pre>
 
