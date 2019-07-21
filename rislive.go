@@ -191,6 +191,7 @@ func (r *RisLive) Get(f *RisFilter) chan RisMessage {
 				prefix = rmd.Announcements[0].Prefixes[0]
 			}
 		}
+		// TODO(morrowc): This doesn't appear to be working properly.
 		if r.CheckASPath(rmd) || r.CheckInvalidTransitAS(rmd) ||
 			r.CheckOrigins(rmd) || r.CheckPrefix(rmd) {
 			fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)

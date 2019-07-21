@@ -1,4 +1,4 @@
-package rislive
+package main
 
 import "testing"
 
