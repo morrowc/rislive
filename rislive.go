@@ -259,6 +259,7 @@ var (
 )
 
 func main() {
+	flag.Parse()
 	rf := &RisFilter{Prefix: []string{"130.137.85.0/24", "199.168.88.0/22", "8.8.8.0/24", "8.8.4.0/24", "216.239.32.0/19"}}
 	r := NewRisLive(risLive, risFile, risClient, rf, buffer)
 
