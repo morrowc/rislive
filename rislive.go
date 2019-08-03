@@ -172,7 +172,7 @@ func (r *RisLive) Listen() {
 		if err != nil {
 			fmt.Printf("failed to decode json: %v\n", err)
 			fmt.Printf("bad json content: %v\n", rm)
-			return
+			continue
 		}
 		r.Records++
 		r.Chan <- rm
