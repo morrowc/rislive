@@ -242,8 +242,8 @@ func (r *RisLive) Listen() <span class="cov0" title="0">{
                 if err != nil </span><span class="cov0" title="0">{
                         fmt.Printf("failed to decode json: %v\n", err)
                         fmt.Printf("bad json content: %v\n", rm)
-                        return
-                }</span>
+                        continue</span>
+                }
                 <span class="cov0" title="0">r.Records++
                 r.Chan &lt;- rm</span>
         }
@@ -265,7 +265,7 @@ func (r *RisLive) Get(f *RisFilter) chan RisMessage <span class="cov0" title="0"
                 <span class="cov0" title="0">if r.CheckASPath(rmd) || r.CheckInvalidTransitAS(rmd) ||
                         r.CheckOrigins(rmd) || r.CheckPrefix(rmd) </span><span class="cov0" title="0">{
                         fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
-                }</span> else<span class="cov0" title="0"> {
+                }</span><span class="cov0" title="0"> else {
                         fmt.Printf("Skipped message for %s \n", prefix)
                 }</span>
         }
