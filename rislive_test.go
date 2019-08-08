@@ -216,5 +216,4 @@ func TestCheckOrigins(t *testing.T) {
 			t.Errorf("[%v]: got/want mismatch got: %v want: %v", test.desc, got, test.want)
 		}
 	}
-
 }
