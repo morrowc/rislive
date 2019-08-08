@@ -3,10 +3,10 @@ package main
 import "testing"
 
 var (
-	msg01 = &RisMessageData{Path: []int32{1, 2, 3, 4, 5, 6, 7, 8}}
-	msg02 = &RisMessageData{Path: []int32{1}}
-	msg03 = &RisMessageData{Path: []int32{1, 3, 4, 5, 6, 7, 8}}
-	msg04 = &RisMessageData{Path: []int32{1, 3, 2, 4, 5, 6, 7, 8}}
+	msg01 = &RisMessageData{Path: []int32{1, 2, 3, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg02 = &RisMessageData{Path: []int32{1}, Origin: "1"}
+	msg03 = &RisMessageData{Path: []int32{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg04 = &RisMessageData{Path: []int32{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
 )
 
 func TestMatchPrefix(t *testing.T) {
@@ -180,4 +180,41 @@ func TestCheckASPath(t *testing.T) {
 			t.Errorf("[%v]: got/want mismatch, wanted: %v got: %v", test.desc, test.want, got)
 		}
 	}
+}
+
+func TestCheckOrigins(t *testing.T) {
+	tests := []struct {
+		desc       string
+		msg        *RisMessageData
+		candidates []string
+		want       bool
+	}{{
+		desc:       "Success found single check: 8",
+		msg:        msg01,
+		candidates: []string{"8"},
+		want:       true,
+	}, {
+		desc:       "Success found double check: 8",
+		msg:        msg01,
+		candidates: []string{"4", "8"},
+		want:       true,
+	}, {
+		desc:       "Failure not found single check: 4",
+		msg:        msg01,
+		candidates: []string{"4"},
+		want:       false,
+	}, {
+		desc:       "Failure not found double check: 4",
+		msg:        msg01,
+		candidates: []string{"4", "5"},
+		want:       false,
+	}}
+
+	for _, test := range tests {
+		got := test.msg.CheckOrigins(test.candidates)
+		if got != test.want {
+			t.Errorf("[%v]: got/want mismatch got: %v want: %v", test.desc, got, test.want)
+		}
+	}
+
 }
