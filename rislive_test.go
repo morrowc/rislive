@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+)
 
 var (
 	msg01 = &RisMessageData{Path: []int32{1, 2, 3, 4, 5, 6, 7, 8}, Origin: "8"}
@@ -8,6 +12,35 @@ var (
 	msg03 = &RisMessageData{Path: []int32{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
 	msg04 = &RisMessageData{Path: []int32{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
 )
+
+func TestNewRisFilter(t *testing.T) {
+	tests := []struct {
+		desc            string
+		aspath          []int32
+		transits        map[int32]bool
+		origins, prefix []string
+		want            *RisFilter
+	}{{
+		desc:     "Success NewRisFilter",
+		aspath:   []int32{1, 2, 3},
+		transits: map[int32]bool{1: true, 2: true},
+		origins:  []string{"1", "2"},
+		prefix:   []string{"192.168.1.0/24", "10.1.0.0/16"},
+		want: &RisFilter{
+			ASPath:           []int32{1, 2, 3},
+			InvalidTransitAS: map[int32]bool{1: true, 2: true},
+			Origins:          []string{"1", "2"},
+			Prefix:           []string{"192.168.1.0/24", "10.1.0.0/16"},
+		},
+	}}
+
+	for _, test := range tests {
+		got := NewRisFilter(test.aspath, test.transits, test.origins, test.prefix)
+		if !cmp.Equal(got, test.want) {
+			t.Errorf("[%v]: got/want mismatch diff(+got, -want):\n%v\n", test.desc, cmp.Diff(got, test.want))
+		}
+	}
+}
 
 func TestMatchPrefix(t *testing.T) {
 	// Example/test announcements.
