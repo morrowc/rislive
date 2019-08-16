@@ -22,7 +22,7 @@ import (
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
-	Url     *string
+	URL     *string
 	File    *string
 	UA      *string
 	Filter  *RisFilter
@@ -50,7 +50,7 @@ type RisMessageData struct {
 	Timestamp     float64            `json:"timestamp"`
 	Peer          string             `json:"peer"`
 	PeerASN       string             `json:"peer_asn,omitempty"`
-	Id            string             `json:"id"`
+	ID            string             `json:"id"`
 	Host          string             `json:"host"`
 	Type          string             `json:"type"`
 	Path          []int32            `json:"path"`
@@ -89,6 +89,7 @@ func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
 	return false
 }
 
+// CheckOrigins checks the message's bgp Origin Attribute matches a list of possible origins.
 func (r *RisMessageData) CheckOrigins(origins []string) bool {
 	for _, origin := range origins {
 		if r.Origin == origin {
@@ -130,7 +131,7 @@ func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []str
 // NewRisLive creates a new RisLive struct.
 func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 	return &RisLive{
-		Url:     url,
+		URL:     url,
 		File:    file,
 		UA:      ua,
 		Filter:  rf,
@@ -148,7 +149,7 @@ func (r *RisLive) Listen() {
 	case true:
 		fmt.Println("Heres a file read")
 		client := &http.Client{}
-		req, err := http.NewRequest("GET", *r.Url, nil)
+		req, err := http.NewRequest("GET", *r.URL, nil)
 		if err != nil {
 			fmt.Printf("failed to create new request to ris-live: %v\n", err)
 		}
