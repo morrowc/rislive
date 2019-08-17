@@ -144,10 +144,11 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
 	var body io.ReadCloser
-	// TODO(morrowc) This appears to not work as expected.
+	// If there's a file provided read/use that, else open the remote
+	// socket and consume the firehose.
 	switch len(*r.File) == 0 {
 	case true:
-		fmt.Println("Heres a file read")
+		fmt.Println("Reading from the firehose...")
 		client := &http.Client{}
 		req, err := http.NewRequest("GET", *r.URL, nil)
 		if err != nil {
@@ -158,6 +159,7 @@ func (r *RisLive) Listen() {
 		defer resp.Body.Close()
 		body = resp.Body
 	default:
+		fmt.Println("Heres a file read")
 		fd, err := ioutil.ReadFile(*r.File)
 		if err != nil {
 			fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
