@@ -289,7 +289,17 @@ func TestCheckInvalidTransitAS(t *testing.T) {
 		rl   *RisLive
 		msg  RisMessageData
 		want bool
-	}{{}}
+	}{{
+		desc: "Success - Transit-AS found",
+		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
+		msg:  RisMessageData{Path: []int32{12, 701, 1, 4}},
+		want: true,
+	}, {
+		desc: "Success - Transit-AS not found",
+		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
+		msg:  RisMessageData{Path: []int32{12, 701, 5, 4}},
+		want: false,
+	}}
 
 	for _, test := range tests {
 		got := test.rl.CheckInvalidTransitAS(&test.msg)
