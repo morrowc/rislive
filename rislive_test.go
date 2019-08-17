@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -37,7 +38,38 @@ func TestNewRisFilter(t *testing.T) {
 	for _, test := range tests {
 		got := NewRisFilter(test.aspath, test.transits, test.origins, test.prefix)
 		if !cmp.Equal(got, test.want) {
-			t.Errorf("[%v]: got/want mismatch diff(+got, -want):\n%v\n", test.desc, cmp.Diff(got, test.want))
+			t.Errorf("[%v]: got/want mismatch diff(-got, +want):\n%v\n", test.desc, cmp.Diff(got, test.want))
+		}
+	}
+}
+
+func TestNewRisLive(t *testing.T) {
+	tests := []struct {
+		desc    string
+		url, ua string
+		file    *string
+		rf      RisFilter
+		buffer  int
+		want    *RisLive
+	}{{
+		desc:   "Success - nil file",
+		url:    "http://blah",
+		file:   nil,
+		ua:     "foo",
+		rf:     RisFilter{ASPath: []int32{1}},
+		buffer: 10,
+		want: &RisLive{
+			URL:    proto.String("http://blah"),
+			UA:     proto.String("foo"),
+			Filter: &RisFilter{ASPath: []int32{1}},
+			Chan:   make(chan (RisMessage), 10),
+		},
+	}}
+
+	for _, test := range tests {
+		got := NewRisLive(&test.url, test.file, &test.ua, &test.rf, &test.buffer)
+		if !cmp.Equal(got.URL, test.want.URL) && !cmp.Equal(got.UA, test.want.UA) {
+			t.Errorf("[%v]: got/want mismatch, diff (-got, +want):\n%v\n", test.desc, cmp.Diff(got, test.want))
 		}
 	}
 }
@@ -247,6 +279,22 @@ func TestCheckOrigins(t *testing.T) {
 		got := test.msg.CheckOrigins(test.candidates)
 		if got != test.want {
 			t.Errorf("[%v]: got/want mismatch got: %v want: %v", test.desc, got, test.want)
+		}
+	}
+}
+
+func TestCheckInvalidTransitAS(t *testing.T) {
+	tests := []struct {
+		desc string
+		rl   *RisLive
+		msg  RisMessageData
+		want bool
+	}{{}}
+
+	for _, test := range tests {
+		got := test.rl.CheckInvalidTransitAS(&test.msg)
+		if got != test.want {
+			t.Errorf("[%v]: got(%v)/want(%v) mismatch", test.desc, got, test.want)
 		}
 	}
 }
