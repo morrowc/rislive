@@ -223,12 +223,12 @@ func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool {
 }
 
 // CheckOrigins checks the inbound message origin against a list of possible origins.
-// If there is no list of origins, return true: no match means show all origins.
+// If there is no list of origins, return false, an origin must be specified in the filter.
 func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 	if len(r.Filter.Origins) > 0 {
 		return rm.CheckOrigins(r.Filter.Origins)
 	}
-	return true
+	return false
 }
 
 // CheckPrefix will check each announcement in a message, and return true

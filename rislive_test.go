@@ -313,3 +313,34 @@ func TestCheckInvalidTransitAS(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckOriginsRisLive(t *testing.T) {
+	tests := []struct {
+		desc string
+		rl   *RisLive
+		msg  RisMessageData
+		want bool
+	}{{
+		desc: "Success - Origin Match",
+		rl:   &RisLive{Filter: &RisFilter{Origins: []string{"1", "701", "7018"}}},
+		msg:  RisMessageData{Origin: "701"},
+		want: true,
+	}, {
+		desc: "Success - Origins not found - false match",
+		rl:   &RisLive{Filter: &RisFilter{Origins: []string{"1", "7018", "3356"}}},
+		msg:  RisMessageData{Origin: "701"},
+		want: false,
+	}, {
+		desc: "Success - Origins zero length - false match",
+		rl:   &RisLive{Filter: &RisFilter{Origins: []string{}}},
+		msg:  RisMessageData{Origin: "701"},
+		want: false,
+	}}
+
+	for _, test := range tests {
+		got := test.rl.CheckOrigins(&test.msg)
+		if got != test.want {
+			t.Errorf("[%v]: got(%v)/want(%v) mismatch", test.desc, got, test.want)
+		}
+	}
+}
