@@ -299,6 +299,11 @@ func TestCheckInvalidTransitAS(t *testing.T) {
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
 		msg:  RisMessageData{Path: []int32{12, 701, 5, 4}},
 		want: false,
+	}, {
+		desc: "Success - InvalidTransitAS is zero length - false return",
+		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{}}},
+		msg:  RisMessageData{Path: []int32{12, 701, 5, 4}},
+		want: false,
 	}}
 
 	for _, test := range tests {
