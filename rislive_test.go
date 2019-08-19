@@ -363,15 +363,15 @@ func TestCheckPrefix(t *testing.T) {
 		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/16"}}},
 		want: true,
 	}, {
-		desc: "Simple sub-prefix match",
+		desc: "Match a subnet announcement",
 		rm: &RisMessageData{
 			Announcements: []*RisAnnouncement{
 				&RisAnnouncement{
-					Prefixes: []string{"192.168.0.0/16"},
+					Prefixes: []string{"192.168.0.0/24"},
 				},
 			},
 		},
-		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/24"}}},
+		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/16"}}},
 		want: true,
 	}}
 

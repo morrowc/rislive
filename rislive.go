@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"reflect"
 )
@@ -241,17 +242,31 @@ func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 // to the requestors list of supernets.
 func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 	if len(r.Filter.Prefix) > 0 {
+		filterPrefixes := []*net.IPNet{}
+		for _, prefix := range r.Filter.Prefix {
+			_, subnet, err := net.ParseCIDR(prefix)
+			if err != nil {
+				fmt.Printf("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+				continue
+			}
+			filterPrefixes = append(filterPrefixes, subnet)
+		}
 		for _, anns := range rm.Announcements {
 			for _, prefix := range anns.Prefixes {
-				for _, check := range r.Filter.Prefix {
-					if prefix == check {
+				for _, check := range filterPrefixes {
+					_, announcementPrefix, err := net.ParseCIDR(prefix)
+					if err != nil {
+						fmt.Printf("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
+						continue
+					}
+					if check.Contains(announcementPrefix) {
 						return true
 					}
 				}
 			}
 		}
 	}
-	return true
+	return false
 }
 
 var (
