@@ -287,27 +287,27 @@ func TestCheckInvalidTransitAS(t *testing.T) {
 	tests := []struct {
 		desc string
 		rl   *RisLive
-		msg  RisMessageData
+		msg  *RisMessageData
 		want bool
 	}{{
 		desc: "Success - Transit-AS found",
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
-		msg:  RisMessageData{Path: []int32{12, 701, 1, 4}},
+		msg:  &RisMessageData{Path: []int32{12, 701, 1, 4}},
 		want: true,
 	}, {
 		desc: "Success - Transit-AS not found",
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
-		msg:  RisMessageData{Path: []int32{12, 701, 5, 4}},
+		msg:  &RisMessageData{Path: []int32{12, 701, 5, 4}},
 		want: false,
 	}, {
 		desc: "Success - InvalidTransitAS is zero length - false return",
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{}}},
-		msg:  RisMessageData{Path: []int32{12, 701, 5, 4}},
+		msg:  &RisMessageData{Path: []int32{12, 701, 5, 4}},
 		want: false,
 	}}
 
 	for _, test := range tests {
-		got := test.rl.CheckInvalidTransitAS(&test.msg)
+		got := test.rl.CheckInvalidTransitAS(test.msg)
 		if got != test.want {
 			t.Errorf("[%v]: got(%v)/want(%v) mismatch", test.desc, got, test.want)
 		}
@@ -318,29 +318,67 @@ func TestCheckOriginsRisLive(t *testing.T) {
 	tests := []struct {
 		desc string
 		rl   *RisLive
-		msg  RisMessageData
+		msg  *RisMessageData
 		want bool
 	}{{
 		desc: "Success - Origin Match",
 		rl:   &RisLive{Filter: &RisFilter{Origins: []string{"1", "701", "7018"}}},
-		msg:  RisMessageData{Origin: "701"},
+		msg:  &RisMessageData{Origin: "701"},
 		want: true,
 	}, {
 		desc: "Success - Origins not found - false match",
 		rl:   &RisLive{Filter: &RisFilter{Origins: []string{"1", "7018", "3356"}}},
-		msg:  RisMessageData{Origin: "701"},
+		msg:  &RisMessageData{Origin: "701"},
 		want: false,
 	}, {
 		desc: "Success - Origins zero length - false match",
 		rl:   &RisLive{Filter: &RisFilter{Origins: []string{}}},
-		msg:  RisMessageData{Origin: "701"},
+		msg:  &RisMessageData{Origin: "701"},
 		want: false,
 	}}
 
 	for _, test := range tests {
-		got := test.rl.CheckOrigins(&test.msg)
+		got := test.rl.CheckOrigins(test.msg)
 		if got != test.want {
 			t.Errorf("[%v]: got(%v)/want(%v) mismatch", test.desc, got, test.want)
+		}
+	}
+}
+
+func TestCheckPrefix(t *testing.T) {
+	tests := []struct {
+		desc string
+		rm   *RisMessageData
+		rl   *RisLive
+		want bool
+	}{{
+		desc: "Simple prefix match",
+		rm: &RisMessageData{
+			Announcements: []*RisAnnouncement{
+				&RisAnnouncement{
+					Prefixes: []string{"192.168.0.0/16"},
+				},
+			},
+		},
+		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/16"}}},
+		want: true,
+	}, {
+		desc: "Simple sub-prefix match",
+		rm: &RisMessageData{
+			Announcements: []*RisAnnouncement{
+				&RisAnnouncement{
+					Prefixes: []string{"192.168.0.0/16"},
+				},
+			},
+		},
+		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/24"}}},
+		want: true,
+	}}
+
+	for _, test := range tests {
+		got := test.rl.CheckPrefix(test.rm)
+		if got != test.want {
+			t.Errorf("[%v]: got/want mismatch: got %v wanted %v", test.desc, got, test.want)
 		}
 	}
 }
