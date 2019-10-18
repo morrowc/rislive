@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"reflect"
 )
@@ -22,7 +23,7 @@ import (
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
-	Url     *string
+	URL     *string
 	File    *string
 	UA      *string
 	Filter  *RisFilter
@@ -50,7 +51,7 @@ type RisMessageData struct {
 	Timestamp     float64            `json:"timestamp"`
 	Peer          string             `json:"peer"`
 	PeerASN       string             `json:"peer_asn,omitempty"`
-	Id            string             `json:"id"`
+	ID            string             `json:"id"`
 	Host          string             `json:"host"`
 	Type          string             `json:"type"`
 	Path          []int32            `json:"path"`
@@ -89,6 +90,7 @@ func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
 	return false
 }
 
+// CheckOrigins checks the message's bgp Origin Attribute matches a list of possible origins.
 func (r *RisMessageData) CheckOrigins(origins []string) bool {
 	for _, origin := range origins {
 		if r.Origin == origin {
@@ -130,7 +132,7 @@ func NewRisFilter(aspath []int32, transits map[int32]bool, origins, prefix []str
 // NewRisLive creates a new RisLive struct.
 func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 	return &RisLive{
-		Url:     url,
+		URL:     url,
 		File:    file,
 		UA:      ua,
 		Filter:  rf,
@@ -143,12 +145,13 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
 	var body io.ReadCloser
-	// TODO(morrowc) This appears to not work as expected.
+	// If there's a file provided read/use that, else open the remote
+	// socket and consume the firehose.
 	switch len(*r.File) == 0 {
 	case true:
-		fmt.Println("Heres a file read")
+		fmt.Println("Reading from the firehose...")
 		client := &http.Client{}
-		req, err := http.NewRequest("GET", *r.Url, nil)
+		req, err := http.NewRequest("GET", *r.URL, nil)
 		if err != nil {
 			fmt.Printf("failed to create new request to ris-live: %v\n", err)
 		}
@@ -157,6 +160,7 @@ func (r *RisLive) Listen() {
 		defer resp.Body.Close()
 		body = resp.Body
 	default:
+		fmt.Println("Heres a file read")
 		fd, err := ioutil.ReadFile(*r.File)
 		if err != nil {
 			fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
@@ -172,7 +176,7 @@ func (r *RisLive) Listen() {
 		if err != nil {
 			fmt.Printf("failed to decode json: %v\n", err)
 			fmt.Printf("bad json content: %v\n", rm)
-			return
+			continue
 		}
 		r.Records++
 		r.Chan <- rm
@@ -214,16 +218,16 @@ func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool {
 	if len(r.Filter.InvalidTransitAS) > 0 {
 		return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
 	}
-	return true
+	return false
 }
 
 // CheckOrigins checks the inbound message origin against a list of possible origins.
-// If there is no list of origins, return true: no match means show all origins.
+// If there is no list of origins, return false, an origin must be specified in the filter.
 func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 	if len(r.Filter.Origins) > 0 {
 		return rm.CheckOrigins(r.Filter.Origins)
 	}
-	return true
+	return false
 }
 
 // CheckPrefix will check each announcement in a message, and return true
@@ -236,11 +240,31 @@ func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 // to the requestors list of supernets.
 func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 	if len(r.Filter.Prefix) > 0 {
+		filterPrefixes := []*net.IPNet{}
+		for _, prefix := range r.Filter.Prefix {
+			_, subnet, err := net.ParseCIDR(prefix)
+			if err != nil {
+				fmt.Printf("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+				continue
+			}
+			filterPrefixes = append(filterPrefixes, subnet)
+		}
 		for _, anns := range rm.Announcements {
-			return anns.MatchPrefix(r.Filter.Prefix)
+			for _, prefix := range anns.Prefixes {
+				for _, check := range filterPrefixes {
+					announcementIP, _, err := net.ParseCIDR(prefix)
+					if err != nil {
+						fmt.Printf("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
+						continue
+					}
+					if check.Contains(announcementIP) {
+						return true
+					}
+				}
+			}
 		}
 	}
-	return true
+	return false
 }
 
 var (
@@ -251,7 +275,11 @@ var (
 )
 
 func main() {
-	rf := &RisFilter{Prefix: []string{"130.137.85.0/24", "199.168.88.0/22", "8.8.8.0/24", "8.8.4.0/24", "216.239.32.0/19"}}
+	flag.Parse()
+	rf := &RisFilter{
+		Prefix:  []string{"130.137.85.0/24", "199.168.88.0/22", "8.8.8.0/24", "8.8.4.0/24", "216.239.32.0/19"},
+		Origins: []string{"15169", "54054", "396982"},
+	}
 	r := NewRisLive(risLive, risFile, risClient, rf, buffer)
 
 	go r.Listen()
