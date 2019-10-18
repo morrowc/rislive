@@ -192,11 +192,9 @@ func (r *RisLive) Get(f *RisFilter) chan RisMessage {
 			}
 		}
 		// TODO(morrowc): This doesn't appear to be working properly.
-		if r.CheckASPath(rmd) || r.CheckInvalidTransitAS(rmd) ||
-			r.CheckOrigins(rmd) || r.CheckPrefix(rmd) {
+		if r.CheckASPath(rmd) && r.CheckInvalidTransitAS(rmd) &&
+			r.CheckOrigins(rmd) && r.CheckPrefix(rmd) {
 			fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
-		} else {
-			fmt.Printf("Skipped message for %s \n", prefix)
 		}
 	}
 }
@@ -216,7 +214,7 @@ func (r *RisLive) CheckInvalidTransitAS(rm *RisMessageData) bool {
 	if len(r.Filter.InvalidTransitAS) > 0 {
 		return rm.InvalidTransitAS(r.Filter.InvalidTransitAS)
 	}
-	return false
+	return true
 }
 
 // CheckOrigins checks the inbound message origin against a list of possible origins.
@@ -239,13 +237,7 @@ func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 	if len(r.Filter.Prefix) > 0 {
 		for _, anns := range rm.Announcements {
-			for _, prefix := range anns.Prefixes {
-				for _, check := range r.Filter.Prefix {
-					if prefix == check {
-						return true
-					}
-				}
-			}
+			return anns.MatchPrefix(r.Filter.Prefix)
 		}
 	}
 	return true
