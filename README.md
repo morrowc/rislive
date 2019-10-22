@@ -4,6 +4,7 @@
 ![](https://github.com/morrowc/rislive/workflows/RisLive/badge.svg)
 ![goreportcard](https://goreportcard.com/badge/github.com/morrowc/rislive "Go Report Card"
 )
+[![Coverage Status](https://coveralls.io/repos/github/morrowc/rislive/badge.svg?branch=master)](https://coveralls.io/github/morrowc/rislive?branch=master)
 
 (Apache2.0 License Applies)
 
