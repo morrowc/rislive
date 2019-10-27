@@ -374,6 +374,28 @@ func TestCheckPrefix(t *testing.T) {
 		},
 		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/16"}}},
 		want: true,
+	}, {
+		desc: "RisLive data is improper",
+		rm: &RisMessageData{
+			Announcements: []*RisAnnouncement{
+				&RisAnnouncement{
+					Prefixes: []string{"192.168.0.0/24"},
+				},
+			},
+		},
+		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.b.0.0/16"}}},
+		want: false,
+	}, {
+		desc: "RisMessageData is improper",
+		rm: &RisMessageData{
+			Announcements: []*RisAnnouncement{
+				&RisAnnouncement{
+					Prefixes: []string{"192.b.0.0/24"},
+				},
+			},
+		},
+		rl:   &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/16"}}},
+		want: false,
 	}}
 
 	for _, test := range tests {
