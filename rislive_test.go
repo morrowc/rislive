@@ -314,6 +314,7 @@ func TestCheckInvalidTransitAS(t *testing.T) {
 	}
 }
 
+// Because there are CheckOrigins in both the RisLive and RisMessageData bits.
 func TestCheckOriginsRisLive(t *testing.T) {
 	tests := []struct {
 		desc string
