@@ -88,6 +88,8 @@ import (
         "net"
         "net/http"
         "reflect"
+
+        "github.com/golang/glog"
 )
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
@@ -314,7 +316,7 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool <span class="cov8" title=
                 for _, prefix := range r.Filter.Prefix </span><span class="cov8" title="1">{
                         _, subnet, err := net.ParseCIDR(prefix)
                         if err != nil </span><span class="cov8" title="1">{
-                                fmt.Printf("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+                                glog.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
                                 continue</span>
                         }
                         <span class="cov8" title="1">filterPrefixes = append(filterPrefixes, subnet)</span>
