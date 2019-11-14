@@ -405,3 +405,78 @@ func TestCheckPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestListen(t *testing.T) {
+	tests := []struct {
+		desc   string
+		file   *string
+		recNum int
+		want   RisMessage
+	}{{
+		desc:   "Successful read of 1 message",
+		file:   proto.String("testdata/1-msg"),
+		recNum: 0,
+		want: RisMessage{
+			Type: "ris_message",
+			Data: &RisMessageData{
+				Timestamp: 1.55862004708e+09,
+				Peer:      "196.60.9.165",
+				PeerASN:   "57695",
+				ID:        "196.60.9.165-1558620047.08-11924763",
+				Host:      "rrc19",
+				Type:      "UPDATE",
+				Path:      []int32{57695, 37650},
+				Community: [][]int32{{57695, 12000}, {57695, 12001}},
+				Origin:    "igp",
+				Announcements: []*RisAnnouncement{
+					&RisAnnouncement{
+						NextHop:  "196.60.9.165",
+						Prefixes: []string{"196.50.70.0/24"}}},
+				Raw: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000E15F00009312400304C43C09A5E00808E15F2EE0E15F2EE118C43246",
+			}},
+	}, {
+		desc:   "Successful read of 5th message",
+		file:   proto.String("testdata/10-msg"),
+		recNum: 4,
+		want: RisMessage{
+			Type: "ris_message",
+			Data: &RisMessageData{
+				Timestamp: 1.55862004706e+09,
+				Peer:      "2001:7f8:d:ff::226",
+				PeerASN:   "24482",
+				ID:        "2001:7f8:d:ff::226-1558620047.06-51675230",
+				Host:      "rrc07",
+				Type:      "UPDATE",
+				Path:      []int32{24482, 6453, 174, 513, 513, 12654},
+				Community: [][]int32{{6453, 86}, {6453, 1000}, {6453, 1400}, {6453, 1402}, {6453, 2000}, {6453, 4000}, {24482, 1}, {24482, 12020}, {24482, 12021}, {24482, 20200}, {24482, 20300}, {24482, 64601}},
+				Origin:    "igp",
+				Announcements: []*RisAnnouncement{
+					&RisAnnouncement{
+						NextHop:  "2001:7f8:d:ff::226",
+						Prefixes: []string{"2001:7fb:fe04::/48"},
+					},
+					&RisAnnouncement{
+						NextHop:  "fe80::2a0:a500:0:3e6",
+						Prefixes: []string{"2001:7fb:fe04::/48"},
+					},
+				},
+				Raw: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00AD02000000964001010040021A020600005FA200001935000000AE00000201000002010000316E800404000007D4C007080000FD090A1DA9C0C0083019350056193503E8193505781935057A193507D019350FA05FA200015FA22EF45FA22EF55FA24EE85FA24F4C5FA2FC59900E002C00020120200107F8000D00FF0000000000000226FE8000000000000002A0A500000003E60030200107FBFE04"},
+		},
+	}}
+
+	for _, test := range tests {
+		r := &RisLive{
+			File:   test.file,
+			Filter: &RisFilter{},
+			Chan:   make(chan RisMessage),
+		}
+		go r.Listen()
+		for x := 0; x < test.recNum; x++ {
+			_ = <-r.Chan
+		}
+		got := <-r.Chan
+		if !cmp.Equal(got, test.want) {
+			t.Errorf("[%v]: got/want differ(+got/-want):\n%v\n", test.desc, cmp.Diff(got, test.want))
+		}
+	}
+}

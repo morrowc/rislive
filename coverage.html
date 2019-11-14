@@ -54,7 +54,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (55.6%)</option>
+				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (67.6%)</option>
 				
 				</select>
 			</div>
@@ -87,9 +87,10 @@ import (
         "io/ioutil"
         "net"
         "net/http"
+        "os"
         "reflect"
 
-        "github.com/golang/glog"
+        log "github.com/golang/glog"
 )
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
@@ -215,64 +216,82 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive <spa
 
 // Listen connects to the RisLive service, parses the stream into structs
 // and makes the data stream available for analysis through the RisLive.Chan channel.
-func (r *RisLive) Listen() <span class="cov0" title="0">{
+func (r *RisLive) Listen() <span class="cov8" title="1">{
         var body io.ReadCloser
         // If there's a file provided read/use that, else open the remote
         // socket and consume the firehose.
         switch len(*r.File) == 0 </span>{
         case true:<span class="cov0" title="0">
-                fmt.Println("Reading from the firehose...")
+                log.Infof("Reading from the firehose...")
                 client := &amp;http.Client{}
                 req, err := http.NewRequest("GET", *r.URL, nil)
                 if err != nil </span><span class="cov0" title="0">{
-                        fmt.Printf("failed to create new request to ris-live: %v\n", err)
+                        log.Fatalf("failed to create new request to ris-live: %v\n", err)
                 }</span>
                 <span class="cov0" title="0">req.Header.Set("User-Agent", *r.UA)
                 resp, err := client.Do(req)
                 defer resp.Body.Close()
                 body = resp.Body</span>
-        default:<span class="cov0" title="0">
-                fmt.Println("Heres a file read")
+        default:<span class="cov8" title="1">
+                log.Infof("Heres a file read")
                 fd, err := ioutil.ReadFile(*r.File)
                 if err != nil </span><span class="cov0" title="0">{
-                        fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
+                        log.Fatalf("failed to read risFile(%v): %v\n", *r.File, err)
                 }</span>
-                <span class="cov0" title="0">body = ioutil.NopCloser(bytes.NewReader(fd))</span>
+                <span class="cov8" title="1">body = ioutil.NopCloser(bytes.NewReader(fd))
+                log.Infof("Finished Reading File")</span>
         }
 
-        <span class="cov0" title="0">dec := json.NewDecoder(body)
+        <span class="cov8" title="1">dec := json.NewDecoder(body)
 
         var rm RisMessage
-        for dec.More() </span><span class="cov0" title="0">{
+        // Remove log file once done.
+        f, err := os.Create("/tmp/log")
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("failed to open log file: %v", err)
+        }</span>
+        <span class="cov8" title="1">defer f.Close()
+
+        for </span><span class="cov8" title="1">{
                 err := dec.Decode(&amp;rm)
-                if err != nil </span><span class="cov0" title="0">{
+                switch </span>{
+                case err != nil &amp;&amp; err != io.EOF:<span class="cov0" title="0">
                         fmt.Printf("failed to decode json: %v\n", err)
-                        fmt.Printf("bad json content: %v\n", rm)
-                        continue</span>
+                        fmt.Printf("RM: %v\n", rm.Data)
+                        _, err := f.WriteString(fmt.Sprintf("bad json content: %+v\n", rm.Data))
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Fatalf("failed to write to log: %v", err)
+                        }</span>
+                        <span class="cov0" title="0">continue</span>
+                case err == io.EOF:<span class="cov8" title="1">
+                        close(r.Chan)
+                        return</span>
                 }
-                <span class="cov0" title="0">r.Records++
+                <span class="cov8" title="1">r.Records++
                 r.Chan &lt;- rm</span>
         }
 }
 
 // Get collects messages from the RisLive.Chan channel and filters results prior
 // to display or handling downstream.
-func (r *RisLive) Get(f *RisFilter) chan RisMessage <span class="cov0" title="0">{
-        for </span><span class="cov0" title="0">{
-                rm := &lt;-r.Chan
+func (r *RisLive) Get(f *RisFilter) string <span class="cov0" title="0">{
+        for rm := range r.Chan </span><span class="cov0" title="0">{
                 rmd := rm.Data
                 prefix := ""
+                // Pull a single prefix from the announcement, which may have more than one.
                 if len(rmd.Announcements) &gt; 0 </span><span class="cov0" title="0">{
                         if len(rmd.Announcements[0].Prefixes) &gt; 0 </span><span class="cov0" title="0">{
                                 prefix = rmd.Announcements[0].Prefixes[0]
                         }</span>
                 }
+                <span class="cov0" title="0">fmt.Printf("Got a prefix: %v / announcement\n", prefix)
                 // TODO(morrowc): This doesn't appear to be working properly.
-                <span class="cov0" title="0">if r.CheckASPath(rmd) &amp;&amp; r.CheckInvalidTransitAS(rmd) &amp;&amp;
+                if r.CheckASPath(rmd) &amp;&amp; r.CheckInvalidTransitAS(rmd) &amp;&amp;
                         r.CheckOrigins(rmd) &amp;&amp; r.CheckPrefix(rmd) </span><span class="cov0" title="0">{
-                        fmt.Printf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
+                        return fmt.Sprintf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
                 }</span>
         }
+        <span class="cov0" title="0">return "Done"</span>
 }
 
 // CheckASPath checks the filterable ASPath, if it's set.
@@ -316,7 +335,7 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool <span class="cov8" title=
                 for _, prefix := range r.Filter.Prefix </span><span class="cov8" title="1">{
                         _, subnet, err := net.ParseCIDR(prefix)
                         if err != nil </span><span class="cov8" title="1">{
-                                glog.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+                                log.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
                                 continue</span>
                         }
                         <span class="cov8" title="1">filterPrefixes = append(filterPrefixes, subnet)</span>
@@ -355,7 +374,8 @@ func main() <span class="cov0" title="0">{
         r := NewRisLive(risLive, risFile, risClient, rf, buffer)
 
         go r.Listen()
-        _ = r.Get(r.Filter)
+        result := r.Get(r.Filter)
+        fmt.Printf("Result: %v\n", result)
 }</span>
 </pre>
 		

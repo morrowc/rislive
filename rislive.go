@@ -17,9 +17,10 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"reflect"
 
-	"github.com/golang/glog"
+	log "github.com/golang/glog"
 )
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
@@ -151,34 +152,50 @@ func (r *RisLive) Listen() {
 	// socket and consume the firehose.
 	switch len(*r.File) == 0 {
 	case true:
-		fmt.Println("Reading from the firehose...")
+		log.Infof("Reading from the firehose...")
 		client := &http.Client{}
 		req, err := http.NewRequest("GET", *r.URL, nil)
 		if err != nil {
-			fmt.Printf("failed to create new request to ris-live: %v\n", err)
+			log.Fatalf("failed to create new request to ris-live: %v\n", err)
 		}
 		req.Header.Set("User-Agent", *r.UA)
 		resp, err := client.Do(req)
 		defer resp.Body.Close()
 		body = resp.Body
 	default:
-		fmt.Println("Heres a file read")
+		log.Infof("Heres a file read")
 		fd, err := ioutil.ReadFile(*r.File)
 		if err != nil {
-			fmt.Printf("failed to read risFile(%v): %v\n", *r.File, err)
+			log.Fatalf("failed to read risFile(%v): %v\n", *r.File, err)
 		}
 		body = ioutil.NopCloser(bytes.NewReader(fd))
+		log.Infof("Finished Reading File")
 	}
 
 	dec := json.NewDecoder(body)
 
 	var rm RisMessage
-	for dec.More() {
+	// Remove log file once done.
+	f, err := os.Create("/tmp/log")
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+	defer f.Close()
+
+	for {
 		err := dec.Decode(&rm)
-		if err != nil {
+		switch {
+		case err != nil && err != io.EOF:
 			fmt.Printf("failed to decode json: %v\n", err)
-			fmt.Printf("bad json content: %v\n", rm)
+			fmt.Printf("RM: %v\n", rm.Data)
+			_, err := f.WriteString(fmt.Sprintf("bad json content: %+v\n", rm.Data))
+			if err != nil {
+				log.Fatalf("failed to write to log: %v", err)
+			}
 			continue
+		case err == io.EOF:
+			close(r.Chan)
+			return
 		}
 		r.Records++
 		r.Chan <- rm
@@ -187,22 +204,24 @@ func (r *RisLive) Listen() {
 
 // Get collects messages from the RisLive.Chan channel and filters results prior
 // to display or handling downstream.
-func (r *RisLive) Get(f *RisFilter) chan RisMessage {
-	for {
-		rm := <-r.Chan
+func (r *RisLive) Get(f *RisFilter) string {
+	for rm := range r.Chan {
 		rmd := rm.Data
 		prefix := ""
+		// Pull a single prefix from the announcement, which may have more than one.
 		if len(rmd.Announcements) > 0 {
 			if len(rmd.Announcements[0].Prefixes) > 0 {
 				prefix = rmd.Announcements[0].Prefixes[0]
 			}
 		}
+		fmt.Printf("Got a prefix: %v / announcement\n", prefix)
 		// TODO(morrowc): This doesn't appear to be working properly.
 		if r.CheckASPath(rmd) && r.CheckInvalidTransitAS(rmd) &&
 			r.CheckOrigins(rmd) && r.CheckPrefix(rmd) {
-			fmt.Printf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
+			return fmt.Sprintf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
 		}
 	}
+	return "Done"
 }
 
 // CheckASPath checks the filterable ASPath, if it's set.
@@ -246,7 +265,7 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 		for _, prefix := range r.Filter.Prefix {
 			_, subnet, err := net.ParseCIDR(prefix)
 			if err != nil {
-				glog.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+				log.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
 				continue
 			}
 			filterPrefixes = append(filterPrefixes, subnet)
@@ -285,5 +304,6 @@ func main() {
 	r := NewRisLive(risLive, risFile, risClient, rf, buffer)
 
 	go r.Listen()
-	_ = r.Get(r.Filter)
+	result := r.Get(r.Filter)
+	fmt.Printf("Result: %v\n", result)
 }
