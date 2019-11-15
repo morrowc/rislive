@@ -214,7 +214,7 @@ func (r *RisLive) Get(f *RisFilter) string {
 				prefix = rmd.Announcements[0].Prefixes[0]
 			}
 		}
-		fmt.Printf("Got a prefix: %v / announcement\n", prefix)
+		log.Infof("Got a prefix: %v / announcement\n", prefix)
 		// TODO(morrowc): This doesn't appear to be working properly.
 		if r.CheckASPath(rmd) && r.CheckInvalidTransitAS(rmd) &&
 			r.CheckOrigins(rmd) && r.CheckPrefix(rmd) {
@@ -275,7 +275,7 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 				for _, check := range filterPrefixes {
 					announcementIP, _, err := net.ParseCIDR(prefix)
 					if err != nil {
-						fmt.Printf("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
+						log.Infof("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
 						continue
 					}
 					if check.Contains(announcementIP) {
