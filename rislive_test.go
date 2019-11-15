@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
@@ -439,9 +437,9 @@ func TestListen(t *testing.T) {
 				}},
 				}, {
 		*/
-		desc:   "Successful read of 5th message",
+		desc:   "Successful read of 6th message",
 		file:   proto.String("testdata/10-msg"),
-		recNum: 4,
+		recNum: 5,
 		want: RisMessage{
 			Type: "ris_message",
 			Data: &RisMessageData{
@@ -475,31 +473,14 @@ func TestListen(t *testing.T) {
 			Chan:   make(chan RisMessage, 10),
 		}
 		go r.Listen()
-		time.Sleep(100 * time.Millisecond)
-		a := <-r.Chan
-		fmt.Printf("A0: %v\n", a.Data.ID)
-		a = <-r.Chan
-		fmt.Printf("A1: %v\n", a.Data.ID)
-		a = <-r.Chan
-		fmt.Printf("A2: %v\n", a.Data.ID)
-		a = <-r.Chan
-		fmt.Printf("A3: %v\n", a.Data.ID)
 
-		/*
-			for x := 0; x < test.recNum; x++ {
-				//	t.Logf("Itteration: %d", x)
-				a := <-r.Chan
-				if a.Data.ID == "foo" {
-					fmt.Printf("This should REALLY never happen!")
-				}
-			}
-		*/
+		for x := 0; x < test.recNum; x++ {
+			_ = <-r.Chan
+		}
 		got := <-r.Chan
-		t.Logf("\nG = %v\nW = %v\n", Marshal(got.Data), Marshal(test.want.Data))
-		if got.Data.ID != test.want.Data.ID {
-			//if !cmp.Equal(got.Data.ID, test.want.Data.ID) {
-			// t.Error("Cookies!")
-			t.Errorf("[%v]: got/want differ(+got/-want):\n%v\n", test.desc, Marshal(got.Data))
+
+		if !cmp.Equal(got, test.want) {
+			t.Errorf("[%v]: got/want differ(+got/-want):\n%v\n", test.desc, cmp.Diff(got, test.want))
 		}
 	}
 }

@@ -153,14 +153,6 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 	}
 }
 
-// SimpleListen is
-func (r *RisLive) SimpleListen() {
-	for i := 1; i < 10; i++ {
-		rm := RisMessage{Data: &RisMessageData{ID: fmt.Sprintf("%d", i)}}
-		r.Chan <- rm
-	}
-}
-
 // Listen connects to the RisLive service, parses the stream into structs
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
@@ -191,7 +183,6 @@ func (r *RisLive) Listen() {
 
 	dec := json.NewDecoder(body)
 
-	var rm RisMessage
 	// Remove log file once done.
 	f, err := os.Create("/tmp/log")
 	if err != nil {
@@ -200,6 +191,7 @@ func (r *RisLive) Listen() {
 	defer f.Close()
 
 	for {
+		var rm RisMessage
 		err := dec.Decode(&rm)
 		switch {
 		case err != nil && err != io.EOF:
@@ -215,7 +207,6 @@ func (r *RisLive) Listen() {
 			return
 		}
 		r.Records++
-		fmt.Printf("Adding: %v\n", rm.Data.ID)
 		r.Chan <- rm
 	}
 }
