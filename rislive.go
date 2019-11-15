@@ -187,7 +187,6 @@ func (r *RisLive) Listen() {
 		log.Fatalf("failed to open log file: %v", err)
 	}
 	defer f.Close()
-
 	for {
 		var rm RisMessage
 		err := dec.Decode(&rm)
@@ -219,6 +218,7 @@ func (r *RisLive) Get(f *RisFilter) string {
 		if len(rmd.Announcements) > 0 {
 			if len(rmd.Announcements[0].Prefixes) > 0 {
 				prefix = rmd.Announcements[0].Prefixes[0]
+				fmt.Printf("Prefix: %v\n", prefix)
 			}
 		}
 		log.Infof("Got a prefix: %v / announcement\n", prefix)
