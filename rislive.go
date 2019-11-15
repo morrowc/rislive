@@ -64,6 +64,15 @@ type RisMessageData struct {
 	Raw           string             `json:"raw"`
 }
 
+/* func (r *RisMessageData) String() string {
+	return fmt.Sprintf("%v", r)
+} */
+
+// Marshal is for marshaling.
+func Marshal(r *RisMessageData) string {
+	return fmt.Sprintf("%v", r)
+}
+
 // MatchASPath matches a fragment of an aspath with an as-path in an announcement.
 func (r *RisMessageData) MatchASPath(c []int32) bool {
 	cLen := len(c)
@@ -144,6 +153,14 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 	}
 }
 
+// SimpleListen is
+func (r *RisLive) SimpleListen() {
+	for i := 1; i < 10; i++ {
+		rm := RisMessage{Data: &RisMessageData{ID: fmt.Sprintf("%d", i)}}
+		r.Chan <- rm
+	}
+}
+
 // Listen connects to the RisLive service, parses the stream into structs
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
@@ -198,6 +215,7 @@ func (r *RisLive) Listen() {
 			return
 		}
 		r.Records++
+		fmt.Printf("Adding: %v\n", rm.Data.ID)
 		r.Chan <- rm
 	}
 }
