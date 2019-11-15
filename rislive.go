@@ -192,8 +192,6 @@ func (r *RisLive) Listen() {
 		err := dec.Decode(&rm)
 		switch {
 		case err != nil && err != io.EOF:
-			fmt.Printf("failed to decode json: %v\n", err)
-			fmt.Printf("RM: %v\n", rm.Data)
 			_, err := f.WriteString(fmt.Sprintf("bad json content: %+v\n", rm.Data))
 			if err != nil {
 				log.Fatalf("failed to write to log: %v", err)
