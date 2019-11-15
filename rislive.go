@@ -23,6 +23,13 @@ import (
 	log "github.com/golang/glog"
 )
 
+var (
+	risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
+	risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
+	risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
+	buffer    = flag.Int("buffer", 1000, "Max depth of Ris messages to queue.")
+)
+
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
 type RisLive struct {
@@ -296,13 +303,6 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
 	}
 	return false
 }
-
-var (
-	risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
-	risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
-	risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
-	buffer    = flag.Int("buffer", 1000, "Max depth of Ris messages to queue.")
-)
 
 func main() {
 	flag.Parse()
