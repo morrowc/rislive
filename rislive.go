@@ -71,15 +71,6 @@ type RisMessageData struct {
 	Raw           string             `json:"raw"`
 }
 
-/* func (r *RisMessageData) String() string {
-	return fmt.Sprintf("%v", r)
-} */
-
-// Marshal is for marshaling.
-func Marshal(r *RisMessageData) string {
-	return fmt.Sprintf("%v", r)
-}
-
 // MatchASPath matches a fragment of an aspath with an as-path in an announcement.
 func (r *RisMessageData) MatchASPath(c []int32) bool {
 	cLen := len(c)
