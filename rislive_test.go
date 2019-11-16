@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -406,15 +410,50 @@ func TestCheckPrefix(t *testing.T) {
 	}
 }
 
+func testServer(f string) *httptest.Server {
+	fd, err := ioutil.ReadFile(f)
+	if err != nil {
+		return nil
+	}
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, string(fd))
+	}))
+}
+
 func TestListen(t *testing.T) {
 	tests := []struct {
 		desc   string
 		file   *string
+		remote bool
 		recNum int
 		want   RisMessage
 	}{{
 		desc:   "Successful read of 1 message",
 		file:   proto.String("testdata/1-msg"),
+		recNum: 0,
+		want: RisMessage{
+			Type: "ris_message",
+			Data: &RisMessageData{
+				Timestamp: 1.55862004708e+09,
+				Peer:      "196.60.9.165",
+				PeerASN:   "57695",
+				ID:        "196.60.9.165-1558620047.08-11924763",
+				Host:      "rrc19",
+				Type:      "UPDATE",
+				Path:      []int32{57695, 37650},
+				Community: [][]int32{{57695, 12000}, {57695, 12001}},
+				Origin:    "igp",
+				Announcements: []*RisAnnouncement{
+					&RisAnnouncement{
+						NextHop:  "196.60.9.165",
+						Prefixes: []string{"196.50.70.0/24"}}},
+				Raw: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000E15F00009312400304C43C09A5E00808E15F2EE0E15F2EE118C43246",
+			}},
+	}, {
+		desc:   "Successfully read 1 http msg",
+		file:   proto.String("testdata/1-msg"),
+		remote: true,
 		recNum: 0,
 		want: RisMessage{
 			Type: "ris_message",
@@ -470,10 +509,19 @@ func TestListen(t *testing.T) {
 	}}
 
 	for _, test := range tests {
+		f := test.file
+		if test.remote {
+			f = proto.String("")
+		}
 		r := &RisLive{
-			File:   test.file,
+			File:   f,
 			Filter: &RisFilter{},
 			Chan:   make(chan RisMessage, 10),
+		}
+		if test.remote {
+			ts := testServer(*test.file)
+			r.URL = &ts.URL
+			r.UA = proto.String("")
 		}
 		go r.Listen()
 

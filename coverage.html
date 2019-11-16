@@ -54,7 +54,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (67.6%)</option>
+				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (79.2%)</option>
 				
 				</select>
 			</div>
@@ -91,6 +91,13 @@ import (
         "reflect"
 
         log "github.com/golang/glog"
+)
+
+var (
+        risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
+        risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
+        risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
+        buffer    = flag.Int("buffer", 1000, "Max depth of Ris messages to queue.")
 )
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
@@ -221,14 +228,14 @@ func (r *RisLive) Listen() <span class="cov8" title="1">{
         // If there's a file provided read/use that, else open the remote
         // socket and consume the firehose.
         switch len(*r.File) == 0 </span>{
-        case true:<span class="cov0" title="0">
+        case true:<span class="cov8" title="1">
                 log.Infof("Reading from the firehose...")
                 client := &amp;http.Client{}
                 req, err := http.NewRequest("GET", *r.URL, nil)
                 if err != nil </span><span class="cov0" title="0">{
                         log.Fatalf("failed to create new request to ris-live: %v\n", err)
                 }</span>
-                <span class="cov0" title="0">req.Header.Set("User-Agent", *r.UA)
+                <span class="cov8" title="1">req.Header.Set("User-Agent", *r.UA)
                 resp, err := client.Do(req)
                 defer resp.Body.Close()
                 body = resp.Body</span>
@@ -244,25 +251,22 @@ func (r *RisLive) Listen() <span class="cov8" title="1">{
 
         <span class="cov8" title="1">dec := json.NewDecoder(body)
 
-        var rm RisMessage
         // Remove log file once done.
         f, err := os.Create("/tmp/log")
         if err != nil </span><span class="cov0" title="0">{
                 log.Fatalf("failed to open log file: %v", err)
         }</span>
         <span class="cov8" title="1">defer f.Close()
-
         for </span><span class="cov8" title="1">{
+                var rm RisMessage
                 err := dec.Decode(&amp;rm)
                 switch </span>{
-                case err != nil &amp;&amp; err != io.EOF:<span class="cov0" title="0">
-                        fmt.Printf("failed to decode json: %v\n", err)
-                        fmt.Printf("RM: %v\n", rm.Data)
+                case err != nil &amp;&amp; err != io.EOF:<span class="cov8" title="1">
                         _, err := f.WriteString(fmt.Sprintf("bad json content: %+v\n", rm.Data))
                         if err != nil </span><span class="cov0" title="0">{
                                 log.Fatalf("failed to write to log: %v", err)
                         }</span>
-                        <span class="cov0" title="0">continue</span>
+                        <span class="cov8" title="1">continue</span>
                 case err == io.EOF:<span class="cov8" title="1">
                         close(r.Chan)
                         return</span>
@@ -282,9 +286,10 @@ func (r *RisLive) Get(f *RisFilter) string <span class="cov0" title="0">{
                 if len(rmd.Announcements) &gt; 0 </span><span class="cov0" title="0">{
                         if len(rmd.Announcements[0].Prefixes) &gt; 0 </span><span class="cov0" title="0">{
                                 prefix = rmd.Announcements[0].Prefixes[0]
+                                fmt.Printf("Prefix: %v\n", prefix)
                         }</span>
                 }
-                <span class="cov0" title="0">fmt.Printf("Got a prefix: %v / announcement\n", prefix)
+                <span class="cov0" title="0">log.Infof("Got a prefix: %v / announcement\n", prefix)
                 // TODO(morrowc): This doesn't appear to be working properly.
                 if r.CheckASPath(rmd) &amp;&amp; r.CheckInvalidTransitAS(rmd) &amp;&amp;
                         r.CheckOrigins(rmd) &amp;&amp; r.CheckPrefix(rmd) </span><span class="cov0" title="0">{
@@ -345,7 +350,7 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool <span class="cov8" title=
                                 for _, check := range filterPrefixes </span><span class="cov8" title="1">{
                                         announcementIP, _, err := net.ParseCIDR(prefix)
                                         if err != nil </span><span class="cov8" title="1">{
-                                                fmt.Printf("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
+                                                log.Infof("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
                                                 continue</span>
                                         }
                                         <span class="cov8" title="1">if check.Contains(announcementIP) </span><span class="cov8" title="1">{
@@ -357,13 +362,6 @@ func (r *RisLive) CheckPrefix(rm *RisMessageData) bool <span class="cov8" title=
         }
         <span class="cov8" title="1">return false</span>
 }
-
-var (
-        risFile   = flag.String("risFile", "", "A file of json content, to help in testing.")
-        risLive   = flag.String("rislive", "https://ris-live.ripe.net/v1/stream/?format=json", "RIS Live firehose url")
-        risClient = flag.String("risclient", "golang-rislive-morrowc", "Clientname to send to rislive")
-        buffer    = flag.Int("buffer", 1000, "Max depth of Ris messages to queue.")
-)
 
 func main() <span class="cov0" title="0">{
         flag.Parse()
