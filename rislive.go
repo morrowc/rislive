@@ -11,6 +11,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -58,13 +59,14 @@ type RisMessage struct {
 
 // RisMessageData is the BGP oriented content of the single RisMessage message type.
 type RisMessageData struct {
-	Timestamp     float64            `json:"timestamp"`
-	Peer          string             `json:"peer"`
-	PeerASN       string             `json:"peer_asn,omitempty"`
-	ID            string             `json:"id"`
-	Host          string             `json:"host"`
-	Type          string             `json:"type"`
-	Path          []int32            `json:"path"`
+	Timestamp     float64       `json:"timestamp"`
+	Peer          string        `json:"peer"`
+	PeerASN       string        `json:"peer_asn,omitempty"`
+	ID            string        `json:"id"`
+	Host          string        `json:"host"`
+	Type          string        `json:"type"`
+	Path          []interface{} `json:"path"`
+	DigestedPath  []int32
 	Community     [][]int32          `json:"community"`
 	Origin        string             `json:"origin"`
 	Announcements []*RisAnnouncement `json:"announcements"`
@@ -75,12 +77,12 @@ type RisMessageData struct {
 func (r *RisMessageData) MatchASPath(c []int32) bool {
 	cLen := len(c)
 	// If the announcement's aspath is shorter than the candidate, no match is possible.
-	if len(r.Path) < cLen {
+	if len(r.DigestedPath) < cLen {
 		return false
 	}
 	// Slide the candidate along the announcement path checking for a match.
-	for i := 0; i+cLen < len(r.Path); i++ {
-		frag := r.Path[i:(i + cLen)]
+	for i := 0; i+cLen < len(r.DigestedPath); i++ {
+		frag := r.DigestedPath[i:(i + cLen)]
 		if reflect.DeepEqual(frag, c) {
 			return true
 		}
@@ -92,7 +94,7 @@ func (r *RisMessageData) MatchASPath(c []int32) bool {
 // there is a match in the Path. This should be used to alert on invalid paths seen, paths
 // which do not match intent/expectations of the announcing ASN.
 func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool {
-	for _, p := range r.Path {
+	for _, p := range r.DigestedPath {
 		if c[p] {
 			return true
 		}
@@ -151,6 +153,30 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 	}
 }
 
+func digestPath(m *RisMessageData) error {
+	m.DigestedPath = []int32{}
+	for _, p := range m.Path {
+		switch v := p.(type) {
+		case int:
+			m.DigestedPath = append(m.DigestedPath, int32(v))
+		case float64:
+			m.DigestedPath = append(m.DigestedPath, int32(v))
+		case []interface{}:
+			// Convert p to a slice of interface.
+			listSlice, ok := p.([]interface{})
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to cast path element: %v as %v", p, reflect.TypeOf(p)))
+			}
+			for _, e := range listSlice {
+				m.DigestedPath = append(m.DigestedPath, int32(e.(float64)))
+			}
+		default:
+			return errors.New(fmt.Sprintf("failed to decode path element: %v as %v", p, reflect.TypeOf(p)))
+		}
+	}
+	return nil
+}
+
 // Listen connects to the RisLive service, parses the stream into structs
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() {
@@ -200,6 +226,11 @@ func (r *RisLive) Listen() {
 		case err == io.EOF:
 			close(r.Chan)
 			return
+		}
+		err = digestPath(rm.Data)
+		if err != nil {
+			fmt.Printf("decoding the message data path(%v) failed: %v\n", rm.Data.Path, err)
+			log.Infof("decoding the message data path(%v) failed: %v", rm.Data.Path, err)
 		}
 		r.Records++
 		r.Chan <- rm

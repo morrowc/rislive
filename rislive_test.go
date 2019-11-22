@@ -12,11 +12,38 @@ import (
 )
 
 var (
-	msg01 = &RisMessageData{Path: []int32{1, 2, 3, 4, 5, 6, 7, 8}, Origin: "8"}
-	msg02 = &RisMessageData{Path: []int32{1}, Origin: "1"}
-	msg03 = &RisMessageData{Path: []int32{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
-	msg04 = &RisMessageData{Path: []int32{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg01 = &RisMessageData{Path: []interface{}{1, 2, 3, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg02 = &RisMessageData{Path: []interface{}{1}, Origin: "1"}
+	msg03 = &RisMessageData{Path: []interface{}{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg04 = &RisMessageData{Path: []interface{}{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
 )
+
+func TestDigestPath(t *testing.T) {
+	tests := []struct {
+		desc    string
+		msg     *RisMessageData
+		want    []int32
+		wantErr bool
+	}{{
+		desc: "Success decode",
+		msg:  msg01,
+		want: []int32{1, 2, 3, 4, 5, 6, 7, 8},
+	}}
+
+	for _, test := range tests {
+		err := digestPath(test.msg)
+		switch {
+		case err != nil && !test.wantErr:
+			t.Errorf("[%v]: got error when not expecting: %v", test.desc, err)
+		case err == nil && test.wantErr:
+			t.Errorf("[%v]: did not get error when expecting one", test.desc)
+		case err == nil:
+			if !cmp.Equal(test.msg.DigestedPath, test.want) {
+				t.Errorf("[%v]: got/want mismatch:\n%v\n", test.desc, cmp.Diff(test.msg.DigestedPath, test.want))
+			}
+		}
+	}
+}
 
 func TestNewRisFilter(t *testing.T) {
 	tests := []struct {
@@ -188,6 +215,10 @@ func TestMatchASPath(t *testing.T) {
 	}}
 
 	for _, test := range tests {
+		err := digestPath(test.msg)
+		if err != nil {
+			t.Errorf("[%v]: failed to digest path elements: %v", test.desc, err)
+		}
 		got := test.msg.MatchASPath(test.candidates)
 		if got != test.want {
 			t.Errorf("[%v]: got/want mismatch, got(%v) / want(%v)", test.desc, got, test.want)
@@ -229,21 +260,26 @@ func TestCheckASPath(t *testing.T) {
 	}{{
 		desc: "Success - second element",
 		rl:   &RisLive{Filter: &RisFilter{ASPath: []int32{57695, 12}}},
-		data: &RisMessageData{Path: []int32{57695, 12, 2332}},
+		data: &RisMessageData{Path: []interface{}{float64(57695), float64(12), float64(2332)}},
 		want: true,
 	}, {
 		desc: "Success - zero matches",
 		rl:   &RisLive{Filter: &RisFilter{ASPath: []int32{57695, 12}}},
-		data: &RisMessageData{Path: []int32{57695, 128, 2332}},
+		data: &RisMessageData{Path: []interface{}{float64(57695), float64(128), float64(2332)}},
 		want: false,
 	}, {
 		desc: "Success - zero to match",
 		rl:   &RisLive{Filter: &RisFilter{ASPath: []int32{}}},
-		data: &RisMessageData{Path: []int32{5769, 128, 2332}},
+		data: &RisMessageData{Path: []interface{}{float64(5769), float64(128), float64(2332)}},
 		want: true,
 	}}
 
 	for _, test := range tests {
+		err := digestPath(test.data)
+		if err != nil {
+			t.Errorf("[%v]: failed to digest path elements: %v", test.desc, err)
+		}
+
 		got := test.rl.CheckASPath(test.data)
 		if got != test.want {
 			t.Errorf("[%v]: got/want mismatch, wanted: %v got: %v", test.desc, test.want, got)
@@ -296,21 +332,25 @@ func TestCheckInvalidTransitAS(t *testing.T) {
 	}{{
 		desc: "Success - Transit-AS found",
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
-		msg:  &RisMessageData{Path: []int32{12, 701, 1, 4}},
+		msg:  &RisMessageData{Path: []interface{}{12, 701, 1, 4}},
 		want: true,
 	}, {
 		desc: "Success - Transit-AS not found",
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{32: true, 1: true}}},
-		msg:  &RisMessageData{Path: []int32{12, 701, 5, 4}},
+		msg:  &RisMessageData{Path: []interface{}{12, 701, 5, 4}},
 		want: false,
 	}, {
 		desc: "Success - InvalidTransitAS is zero length - false return",
 		rl:   &RisLive{Filter: &RisFilter{InvalidTransitAS: map[int32]bool{}}},
-		msg:  &RisMessageData{Path: []int32{12, 701, 5, 4}},
+		msg:  &RisMessageData{Path: []interface{}{12, 701, 5, 4}},
 		want: false,
 	}}
 
 	for _, test := range tests {
+		err := digestPath(test.msg)
+		if err != nil {
+			t.Errorf("[%v]: failed to digest path elements: %v", test.desc, err)
+		}
 		got := test.rl.CheckInvalidTransitAS(test.msg)
 		if got != test.want {
 			t.Errorf("[%v]: got(%v)/want(%v) mismatch", test.desc, got, test.want)
@@ -435,15 +475,16 @@ func TestListen(t *testing.T) {
 		want: RisMessage{
 			Type: "ris_message",
 			Data: &RisMessageData{
-				Timestamp: 1.55862004708e+09,
-				Peer:      "196.60.9.165",
-				PeerASN:   "57695",
-				ID:        "196.60.9.165-1558620047.08-11924763",
-				Host:      "rrc19",
-				Type:      "UPDATE",
-				Path:      []int32{57695, 37650},
-				Community: [][]int32{{57695, 12000}, {57695, 12001}},
-				Origin:    "igp",
+				Timestamp:    1.55862004708e+09,
+				Peer:         "196.60.9.165",
+				PeerASN:      "57695",
+				ID:           "196.60.9.165-1558620047.08-11924763",
+				Host:         "rrc19",
+				Type:         "UPDATE",
+				Path:         []interface{}{float64(57695), float64(37650)},
+				Community:    [][]int32{{57695, 12000}, {57695, 12001}},
+				Origin:       "igp",
+				DigestedPath: []int32{int32(57695), int32(37650)},
 				Announcements: []*RisAnnouncement{
 					&RisAnnouncement{
 						NextHop:  "196.60.9.165",
@@ -458,15 +499,16 @@ func TestListen(t *testing.T) {
 		want: RisMessage{
 			Type: "ris_message",
 			Data: &RisMessageData{
-				Timestamp: 1.55862004708e+09,
-				Peer:      "196.60.9.165",
-				PeerASN:   "57695",
-				ID:        "196.60.9.165-1558620047.08-11924763",
-				Host:      "rrc19",
-				Type:      "UPDATE",
-				Path:      []int32{57695, 37650},
-				Community: [][]int32{{57695, 12000}, {57695, 12001}},
-				Origin:    "igp",
+				Timestamp:    1.55862004708e+09,
+				Peer:         "196.60.9.165",
+				PeerASN:      "57695",
+				ID:           "196.60.9.165-1558620047.08-11924763",
+				Host:         "rrc19",
+				Type:         "UPDATE",
+				Path:         []interface{}{float64(57695), float64(37650)},
+				Community:    [][]int32{{57695, 12000}, {57695, 12001}},
+				Origin:       "igp",
+				DigestedPath: []int32{int32(57695), int32(37650)},
 				Announcements: []*RisAnnouncement{
 					&RisAnnouncement{
 						NextHop:  "196.60.9.165",
@@ -480,15 +522,16 @@ func TestListen(t *testing.T) {
 		want: RisMessage{
 			Type: "ris_message",
 			Data: &RisMessageData{
-				Timestamp: 1.55862004706e+09,
-				Peer:      "2001:7f8:d:ff::226",
-				PeerASN:   "24482",
-				ID:        "2001:7f8:d:ff::226-1558620047.06-51675230",
-				Host:      "rrc07",
-				Type:      "UPDATE",
-				Path:      []int32{24482, 6453, 174, 513, 513, 12654},
-				Community: [][]int32{{6453, 86}, {6453, 1000}, {6453, 1400}, {6453, 1402}, {6453, 2000}, {6453, 4000}, {24482, 1}, {24482, 12020}, {24482, 12021}, {24482, 20200}, {24482, 20300}, {24482, 64601}},
-				Origin:    "igp",
+				Timestamp:    1.55862004706e+09,
+				Peer:         "2001:7f8:d:ff::226",
+				PeerASN:      "24482",
+				ID:           "2001:7f8:d:ff::226-1558620047.06-51675230",
+				Host:         "rrc07",
+				Type:         "UPDATE",
+				Path:         []interface{}{float64(24482), float64(6453), float64(174), float64(513), float64(513), float64(12654)},
+				Community:    [][]int32{{6453, 86}, {6453, 1000}, {6453, 1400}, {6453, 1402}, {6453, 2000}, {6453, 4000}, {24482, 1}, {24482, 12020}, {24482, 12021}, {24482, 20200}, {24482, 20300}, {24482, 64601}},
+				Origin:       "igp",
+				DigestedPath: []int32{int32(24482), int32(6453), int32(174), int32(513), int32(513), int32(12654)},
 				Announcements: []*RisAnnouncement{
 					&RisAnnouncement{
 						NextHop:  "2001:7f8:d:ff::226",
@@ -505,7 +548,29 @@ func TestListen(t *testing.T) {
 		desc:   "Fail reading an as-set in path",
 		file:   proto.String("testdata/fail-as-set"),
 		recNum: 0,
-		want:   RisMessage{},
+		want: RisMessage{
+			Type: "ris_message",
+			Data: &RisMessageData{
+				Timestamp:    1.57383086172e+09,
+				Peer:         "2001:504:1::a500:2497:1",
+				PeerASN:      "2497",
+				ID:           "11-2001-504-1-a500-2497-1-439516",
+				Host:         "rrc11",
+				Type:         "UPDATE",
+				Path:         []interface{}{float64(2497), float64(6453), float64(18705), float64(26281), []interface{}{float64(13340)}},
+				DigestedPath: []int32{int32(2497), int32(6453), int32(18705), int32(26281), int32(13340)},
+				Origin:       "incomplete",
+				Announcements: []*RisAnnouncement{
+					&RisAnnouncement{
+						NextHop:  "2001:504:1::a500:2497:1",
+						Prefixes: []string{"2607:ffc0:1000::/36"}},
+					&RisAnnouncement{
+						NextHop:  "fe80::86c1:c1ff:fe7d:6298",
+						Prefixes: []string{"2607:ffc0:1000::/36"},
+					},
+				},
+				Raw: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00700200000059400101024002180204000009C10000193500004911000066A901010000341CC00708000066A90A010021900E002B0002012020010504000100000000A50024970001FE8000000000000086C1C1FFFE7D629800242607FFC010"},
+		},
 	}}
 
 	for _, test := range tests {

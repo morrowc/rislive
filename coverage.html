@@ -54,7 +54,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (79.2%)</option>
+				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (76.1%)</option>
 				
 				</select>
 			</div>
@@ -81,6 +81,7 @@ package main
 import (
         "bytes"
         "encoding/json"
+        "errors"
         "flag"
         "fmt"
         "io"
@@ -128,13 +129,14 @@ type RisMessage struct {
 
 // RisMessageData is the BGP oriented content of the single RisMessage message type.
 type RisMessageData struct {
-        Timestamp     float64            `json:"timestamp"`
-        Peer          string             `json:"peer"`
-        PeerASN       string             `json:"peer_asn,omitempty"`
-        ID            string             `json:"id"`
-        Host          string             `json:"host"`
-        Type          string             `json:"type"`
-        Path          []int32            `json:"path"`
+        Timestamp     float64       `json:"timestamp"`
+        Peer          string        `json:"peer"`
+        PeerASN       string        `json:"peer_asn,omitempty"`
+        ID            string        `json:"id"`
+        Host          string        `json:"host"`
+        Type          string        `json:"type"`
+        Path          []interface{} `json:"path"`
+        DigestedPath  []int32
         Community     [][]int32          `json:"community"`
         Origin        string             `json:"origin"`
         Announcements []*RisAnnouncement `json:"announcements"`
@@ -145,12 +147,12 @@ type RisMessageData struct {
 func (r *RisMessageData) MatchASPath(c []int32) bool <span class="cov8" title="1">{
         cLen := len(c)
         // If the announcement's aspath is shorter than the candidate, no match is possible.
-        if len(r.Path) &lt; cLen </span><span class="cov8" title="1">{
+        if len(r.DigestedPath) &lt; cLen </span><span class="cov8" title="1">{
                 return false
         }</span>
         // Slide the candidate along the announcement path checking for a match.
-        <span class="cov8" title="1">for i := 0; i+cLen &lt; len(r.Path); i++ </span><span class="cov8" title="1">{
-                frag := r.Path[i:(i + cLen)]
+        <span class="cov8" title="1">for i := 0; i+cLen &lt; len(r.DigestedPath); i++ </span><span class="cov8" title="1">{
+                frag := r.DigestedPath[i:(i + cLen)]
                 if reflect.DeepEqual(frag, c) </span><span class="cov8" title="1">{
                         return true
                 }</span>
@@ -162,7 +164,7 @@ func (r *RisMessageData) MatchASPath(c []int32) bool <span class="cov8" title="1
 // there is a match in the Path. This should be used to alert on invalid paths seen, paths
 // which do not match intent/expectations of the announcing ASN.
 func (r *RisMessageData) InvalidTransitAS(c map[int32]bool) bool <span class="cov8" title="1">{
-        for _, p := range r.Path </span><span class="cov8" title="1">{
+        for _, p := range r.DigestedPath </span><span class="cov8" title="1">{
                 if c[p] </span><span class="cov8" title="1">{
                         return true
                 }</span>
@@ -221,6 +223,30 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive <spa
         }
 }</span>
 
+func digestPath(m *RisMessageData) error <span class="cov8" title="1">{
+        m.DigestedPath = []int32{}
+        for _, p := range m.Path </span><span class="cov8" title="1">{
+                switch v := p.(type) </span>{
+                case int:<span class="cov8" title="1">
+                        m.DigestedPath = append(m.DigestedPath, int32(v))</span>
+                case float64:<span class="cov8" title="1">
+                        m.DigestedPath = append(m.DigestedPath, int32(v))</span>
+                case []interface{}:<span class="cov8" title="1">
+                        // Convert p to a slice of interface.
+                        listSlice, ok := p.([]interface{})
+                        if !ok </span><span class="cov0" title="0">{
+                                return errors.New(fmt.Sprintf("failed to cast path element: %v as %v", p, reflect.TypeOf(p)))
+                        }</span>
+                        <span class="cov8" title="1">for _, e := range listSlice </span><span class="cov8" title="1">{
+                                m.DigestedPath = append(m.DigestedPath, int32(e.(float64)))
+                        }</span>
+                default:<span class="cov0" title="0">
+                        return errors.New(fmt.Sprintf("failed to decode path element: %v as %v", p, reflect.TypeOf(p)))</span>
+                }
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
 // Listen connects to the RisLive service, parses the stream into structs
 // and makes the data stream available for analysis through the RisLive.Chan channel.
 func (r *RisLive) Listen() <span class="cov8" title="1">{
@@ -261,16 +287,21 @@ func (r *RisLive) Listen() <span class="cov8" title="1">{
                 var rm RisMessage
                 err := dec.Decode(&amp;rm)
                 switch </span>{
-                case err != nil &amp;&amp; err != io.EOF:<span class="cov8" title="1">
+                case err != nil &amp;&amp; err != io.EOF:<span class="cov0" title="0">
                         _, err := f.WriteString(fmt.Sprintf("bad json content: %+v\n", rm.Data))
                         if err != nil </span><span class="cov0" title="0">{
                                 log.Fatalf("failed to write to log: %v", err)
                         }</span>
-                        <span class="cov8" title="1">continue</span>
+                        <span class="cov0" title="0">continue</span>
                 case err == io.EOF:<span class="cov8" title="1">
                         close(r.Chan)
                         return</span>
                 }
+                <span class="cov8" title="1">err = digestPath(rm.Data)
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("decoding the message data path(%v) failed: %v\n", rm.Data.Path, err)
+                        log.Infof("decoding the message data path(%v) failed: %v", rm.Data.Path, err)
+                }</span>
                 <span class="cov8" title="1">r.Records++
                 r.Chan &lt;- rm</span>
         }
