@@ -11,7 +11,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -165,13 +164,13 @@ func digestPath(m *RisMessageData) error {
 			// Convert p to a slice of interface.
 			listSlice, ok := p.([]interface{})
 			if !ok {
-				return errors.New(fmt.Sprintf("failed to cast path element: %v as %v", p, reflect.TypeOf(p)))
+				return fmt.Errorf("failed to cast path element: %v as %v", p, reflect.TypeOf(p))
 			}
 			for _, e := range listSlice {
 				m.DigestedPath = append(m.DigestedPath, int32(e.(float64)))
 			}
 		default:
-			return errors.New(fmt.Sprintf("failed to decode path element: %v as %v", p, reflect.TypeOf(p)))
+			return fmt.Errorf("failed to decode path element: %v as %v", p, reflect.TypeOf(p))
 		}
 	}
 	return nil
