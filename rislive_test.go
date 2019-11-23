@@ -17,7 +17,7 @@ var (
 	msg03 = &RisMessageData{Path: []interface{}{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
 	msg04 = &RisMessageData{Path: []interface{}{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
 	msg05 = &RisMessageData{Path: []interface{}{"An", "ASN", "LIST", "HERE"}, Origin: "9"}
-	msg06 = &RisMessageData{Path: []interface{}{1, 2, 3, []interface{}{4, 5}}, Origin: "9"}
+	msg06 = &RisMessageData{Path: []interface{}{1, 2, 3, []string{"6"}}, Origin: "9"}
 )
 
 func TestDigestPath(t *testing.T) {
@@ -33,6 +33,10 @@ func TestDigestPath(t *testing.T) {
 	}, {
 		desc:    "Error, path is words",
 		msg:     msg05,
+		wantErr: true,
+	}, {
+		desc:    "Error, path interface slice is not slice",
+		msg:     msg06,
 		wantErr: true,
 	}}
 
