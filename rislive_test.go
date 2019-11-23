@@ -16,6 +16,8 @@ var (
 	msg02 = &RisMessageData{Path: []interface{}{1}, Origin: "1"}
 	msg03 = &RisMessageData{Path: []interface{}{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
 	msg04 = &RisMessageData{Path: []interface{}{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg05 = &RisMessageData{Path: []interface{}{"An", "ASN", "LIST", "HERE"}, Origin: "9"}
+	msg06 = &RisMessageData{Path: []interface{}{1, 2, 3, []interface{}{4, 5}}, Origin: "9"}
 )
 
 func TestDigestPath(t *testing.T) {
@@ -28,6 +30,10 @@ func TestDigestPath(t *testing.T) {
 		desc: "Success decode",
 		msg:  msg01,
 		want: []int32{1, 2, 3, 4, 5, 6, 7, 8},
+	}, {
+		desc:    "Error, path is words",
+		msg:     msg05,
+		wantErr: true,
 	}}
 
 	for _, test := range tests {
