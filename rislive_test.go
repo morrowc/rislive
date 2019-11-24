@@ -610,3 +610,35 @@ func TestListen(t *testing.T) {
 		}
 	}
 }
+
+func TestGet(t *testing.T) {
+	tests := []struct {
+		desc   string
+		file   string
+		filter *RisFilter
+		want   string
+	}{{
+		desc: "Success simple filter: prefix",
+		filter: &RisFilter{
+			Prefix:           []string{"196.50.70.0/24"},
+			ASPath:           []int32{int32(57695)},
+			Origins:          []string{"37650"},
+			InvalidTransitAS: map[int32]bool{int32(57695): true},
+		},
+		file: "testdata/1-msg",
+		want: "Done",
+	}}
+
+	for _, test := range tests {
+		r := &RisLive{
+			File:   proto.String(test.file),
+			Filter: test.filter,
+			Chan:   make(chan RisMessage, 10),
+		}
+		go r.Listen()
+		got := r.Get(r.Filter)
+		if !cmp.Equal(got, test.want) {
+			t.Errorf("[%v]: got/want mismatch:\n%v\n", test.desc, cmp.Diff(got, test.want))
+		}
+	}
+}
