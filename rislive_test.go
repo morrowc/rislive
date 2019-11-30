@@ -16,6 +16,8 @@ var (
 	msg02 = &RisMessageData{Path: []interface{}{1}, Origin: "1"}
 	msg03 = &RisMessageData{Path: []interface{}{1, 3, 4, 5, 6, 7, 8}, Origin: "8"}
 	msg04 = &RisMessageData{Path: []interface{}{1, 3, 2, 4, 5, 6, 7, 8}, Origin: "8"}
+	msg05 = &RisMessageData{Path: []interface{}{"An", "ASN", "LIST", "HERE"}, Origin: "9"}
+	msg06 = &RisMessageData{Path: []interface{}{1, 2, 3, []string{"6"}}, Origin: "9"}
 )
 
 func TestDigestPath(t *testing.T) {
@@ -28,6 +30,14 @@ func TestDigestPath(t *testing.T) {
 		desc: "Success decode",
 		msg:  msg01,
 		want: []int32{1, 2, 3, 4, 5, 6, 7, 8},
+	}, {
+		desc:    "Error, path is words",
+		msg:     msg05,
+		wantErr: true,
+	}, {
+		desc:    "Error, path interface slice is not slice",
+		msg:     msg06,
+		wantErr: true,
 	}}
 
 	for _, test := range tests {
@@ -597,6 +607,38 @@ func TestListen(t *testing.T) {
 
 		if !cmp.Equal(got, test.want) {
 			t.Errorf("[%v]: got/want differ(+got/-want):\n%v\n", test.desc, cmp.Diff(got, test.want))
+		}
+	}
+}
+
+func TestGet(t *testing.T) {
+	tests := []struct {
+		desc   string
+		file   string
+		filter *RisFilter
+		want   string
+	}{{
+		desc: "Success simple filter: prefix",
+		filter: &RisFilter{
+			Prefix:           []string{"196.50.70.0/24"},
+			ASPath:           []int32{int32(57695)},
+			Origins:          []string{"37650"},
+			InvalidTransitAS: map[int32]bool{int32(57695): true},
+		},
+		file: "testdata/1-msg",
+		want: "Done",
+	}}
+
+	for _, test := range tests {
+		r := &RisLive{
+			File:   proto.String(test.file),
+			Filter: test.filter,
+			Chan:   make(chan RisMessage, 10),
+		}
+		go r.Listen()
+		got := r.Get(r.Filter)
+		if !cmp.Equal(got, test.want) {
+			t.Errorf("[%v]: got/want mismatch:\n%v\n", test.desc, cmp.Diff(got, test.want))
 		}
 	}
 }

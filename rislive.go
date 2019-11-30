@@ -32,6 +32,7 @@ var (
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
+// TODO(morrowc): Why are the struct elements here Exported? unexport please.
 type RisLive struct {
 	URL     *string
 	File    *string
@@ -238,6 +239,7 @@ func (r *RisLive) Listen() {
 
 // Get collects messages from the RisLive.Chan channel and filters results prior
 // to display or handling downstream.
+// TODO(morrowc): Why is Get accepting a Filter? Why not just use the Filter in RisLive?
 func (r *RisLive) Get(f *RisFilter) string {
 	for rm := range r.Chan {
 		rmd := rm.Data
@@ -251,6 +253,9 @@ func (r *RisLive) Get(f *RisFilter) string {
 		}
 		log.Infof("Got a prefix: %v / announcement\n", prefix)
 		// TODO(morrowc): This doesn't appear to be working properly.
+		// the logic here needs to be more complicated, depending upon what's set
+		// in the filter to check. Suggest make 'checkTests' like function, evaluate
+		// so only the set filter parts matter.
 		if r.CheckASPath(rmd) && r.CheckInvalidTransitAS(rmd) &&
 			r.CheckOrigins(rmd) && r.CheckPrefix(rmd) {
 			return fmt.Sprintf("Message(%d): Peer/ASN -> %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)

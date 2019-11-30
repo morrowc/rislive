@@ -54,7 +54,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">/home/morrowc/scripts/git/rislive/rislive.go (76.1%)</option>
+				<option value="file0">github.com/morrowc/rislive/rislive.go (85.5%)</option>
 				
 				</select>
 			</div>
@@ -103,6 +103,7 @@ var (
 
 // RisLive is a struct to hold basic data used in connecting to the RIS Live service
 // and managing data output/collection for the calling client.
+// TODO(morrowc): Why are the struct elements here Exported? unexport please.
 type RisLive struct {
         URL     *string
         File    *string
@@ -240,7 +241,7 @@ func digestPath(m *RisMessageData) error <span class="cov8" title="1">{
                         <span class="cov8" title="1">for _, e := range listSlice </span><span class="cov8" title="1">{
                                 m.DigestedPath = append(m.DigestedPath, int32(e.(float64)))
                         }</span>
-                default:<span class="cov0" title="0">
+                default:<span class="cov8" title="1">
                         return errors.New(fmt.Sprintf("failed to decode path element: %v as %v", p, reflect.TypeOf(p)))</span>
                 }
         }
@@ -309,25 +310,29 @@ func (r *RisLive) Listen() <span class="cov8" title="1">{
 
 // Get collects messages from the RisLive.Chan channel and filters results prior
 // to display or handling downstream.
-func (r *RisLive) Get(f *RisFilter) string <span class="cov0" title="0">{
-        for rm := range r.Chan </span><span class="cov0" title="0">{
+// TODO(morrowc): Why is Get accepting a Filter? Why not just use the Filter in RisLive?
+func (r *RisLive) Get(f *RisFilter) string <span class="cov8" title="1">{
+        for rm := range r.Chan </span><span class="cov8" title="1">{
                 rmd := rm.Data
                 prefix := ""
                 // Pull a single prefix from the announcement, which may have more than one.
-                if len(rmd.Announcements) &gt; 0 </span><span class="cov0" title="0">{
-                        if len(rmd.Announcements[0].Prefixes) &gt; 0 </span><span class="cov0" title="0">{
+                if len(rmd.Announcements) &gt; 0 </span><span class="cov8" title="1">{
+                        if len(rmd.Announcements[0].Prefixes) &gt; 0 </span><span class="cov8" title="1">{
                                 prefix = rmd.Announcements[0].Prefixes[0]
                                 fmt.Printf("Prefix: %v\n", prefix)
                         }</span>
                 }
-                <span class="cov0" title="0">log.Infof("Got a prefix: %v / announcement\n", prefix)
+                <span class="cov8" title="1">log.Infof("Got a prefix: %v / announcement\n", prefix)
                 // TODO(morrowc): This doesn't appear to be working properly.
+                // the logic here needs to be more complicated, depending upon what's set
+                // in the filter to check. Suggest make 'checkTests' like function, evaluate
+                // so only the set filter parts matter.
                 if r.CheckASPath(rmd) &amp;&amp; r.CheckInvalidTransitAS(rmd) &amp;&amp;
                         r.CheckOrigins(rmd) &amp;&amp; r.CheckPrefix(rmd) </span><span class="cov0" title="0">{
                         return fmt.Sprintf("Message(%d): Peer/ASN -&gt; %v/%v Prefix1: %v\n", r.Records, rmd.Peer, rmd.PeerASN, prefix)
                 }</span>
         }
-        <span class="cov0" title="0">return "Done"</span>
+        <span class="cov8" title="1">return "Done"</span>
 }
 
 // CheckASPath checks the filterable ASPath, if it's set.
