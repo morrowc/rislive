@@ -23,7 +23,7 @@ type Node struct {
 	lock   *sync.Mutex // A mutex, to permit locking the structure if changes are to be made.
 }
 
-func (n *Node) Search(net) *net.IPNet {
+func (n *Node) Search(net.IPNet) *net.IPNet {
 	return nil
 }
 
@@ -47,7 +47,7 @@ func (t *Tree) Lpm(n *net.IPNet) (*net.IPNet, error) {
 	// If the first Octet exists, keep searching for the best match.
 	if node := t.Root[o]; node.Prefix != nil {
 		fmt.Printf("found first level match(%v) for: %v\n", n, o)
-		return node.Search(n)
+		return node.Search(n), nil
 	}
 
 	return nil, fmt.Errorf("failed to find match for: %v", n)
