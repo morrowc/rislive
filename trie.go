@@ -23,7 +23,7 @@ type Node struct {
 	lock   *sync.Mutex // A mutex, to permit locking the structure if changes are to be made.
 }
 
-func (n *Node) Search(n *net.IPNet) *net.IPNet {
+func (n *Node) Search(query *net.IPNet) *net.IPNet {
 	return nil
 }
 
