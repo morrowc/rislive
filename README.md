@@ -1,6 +1,4 @@
 # rislive
-![coverage](./coverage_badge.png "Coverage")
-![buildstatus](https://api.travis-ci.org/morrowc/rislive.svg?branch=master "BuildStatus")
 ![](https://github.com/morrowc/rislive/workflows/RisLive/badge.svg)
 ![goreportcard](https://goreportcard.com/badge/github.com/morrowc/rislive "Go Report Card"
 )
