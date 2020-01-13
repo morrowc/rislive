@@ -255,7 +255,7 @@ func (r *RisLive) Get(f *RisFilter) string {
 				}
 				fmt.Printf("Prefixes: %v Origin: %v Path: %v\n",
 					strings.Join(prefixes, ", "),
-					rmd.Origin,
+					rmd.DigestedPath[len(rmd.DigestedPath)-1],
 					rmd.Path)
 			}
 		}
