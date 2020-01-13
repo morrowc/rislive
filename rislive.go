@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 
 	log "github.com/golang/glog"
 )
@@ -247,8 +248,15 @@ func (r *RisLive) Get(f *RisFilter) string {
 		// Pull a single prefix from the announcement, which may have more than one.
 		if len(rmd.Announcements) > 0 {
 			if len(rmd.Announcements[0].Prefixes) > 0 {
-				prefix = rmd.Announcements[0].Prefixes[0]
-				fmt.Printf("Prefix: %v\n", prefix)
+				prefixes := []string{}
+				// Loop on announcements as well, of course.
+				for _, p := range rmd.Announcements[0].Prefixes {
+					prefixes = append(prefixes, p)
+				}
+				fmt.Printf("Prefixes: %v Origin: %v Path: %v\n",
+					strings.Join(prefixes, ", "),
+					rmd.Origin,
+					rmd.Path)
 			}
 		}
 		log.Infof("Got a prefix: %v / announcement\n", prefix)
