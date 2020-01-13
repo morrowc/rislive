@@ -249,14 +249,15 @@ func (r *RisLive) Get(f *RisFilter) string {
 		if len(rmd.Announcements) > 0 {
 			if len(rmd.Announcements[0].Prefixes) > 0 {
 				prefixes := []string{}
-				// Loop on announcements as well, of course.
-				for _, p := range rmd.Announcements[0].Prefixes {
-					prefixes = append(prefixes, p)
+				for _, a := range rmd.Announcements {
+					for _, p := range a.Prefixes {
+						prefixes = append(prefixes, p)
+					}
+					fmt.Printf("Prefixes: %v Origin: %v Path: %v\n",
+						strings.Join(prefixes, ", "),
+						rmd.DigestedPath[len(rmd.DigestedPath)-1],
+						rmd.Path)
 				}
-				fmt.Printf("Prefixes: %v Origin: %v Path: %v\n",
-					strings.Join(prefixes, ", "),
-					rmd.DigestedPath[len(rmd.DigestedPath)-1],
-					rmd.Path)
 			}
 		}
 		log.Infof("Got a prefix: %v / announcement\n", prefix)
