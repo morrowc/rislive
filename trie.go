@@ -1,5 +1,6 @@
 // Add a simple trie to be used in longest prefix matching for
-// ip prefixes/networks.
+// ip prefixes/networks. TODO(morrowc): this should be moved to an external
+// package.
 package main
 
 import (
