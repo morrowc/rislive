@@ -24,8 +24,8 @@ type Prefix struct {
 }
 
 // Convenient functions to return elements of the Prefix struct.
-func (p *Prefix) IP() net.IP      { return p.IP }
-func (p *Prefix) Net() *net.IPNet { return p.Network }
+func (p *Prefix) GetIP() net.IP      { return p.IP }
+func (p *Prefix) GetNet() *net.IPNet { return p.Network }
 
 // Node is a single tree element, with linkage to it's parent and 2 siblings.
 type Node struct {
