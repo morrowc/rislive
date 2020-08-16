@@ -62,7 +62,7 @@ func (t *Tree) PrefixLpm(n *net.IPNet) (*net.IPNet, error) {
 // until neither L nor R forks match the request.
 //
 // The match is returned or an error if there is no match.
-func (t *Tree) Lpm(n *net.IP) (*net.IPNet, error) {
+func (t *Tree) Lpm(n net.IP) (*net.IPNet, error) {
 	if n == nil {
 		return nil, fmt.Errorf("can not LPM a nil prefix: %v", n)
 	}
