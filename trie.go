@@ -67,15 +67,19 @@ func (t *Tree) Lpm(n net.IP) (*net.IPNet, error) {
 		return nil, fmt.Errorf("can not LPM a nil prefix: %v", n)
 	}
 
-	// Search the L/R legs of the tree, If the L and R legs this node is the match.
-	// Search down the L tree leg.
-
-	// Search down the R tree leg.
-
-	return nil, fmt.Errorf("failed to find match for: %v", n)
+	// Searching the root, this is recursive down the root/nodes.
+	return t.Root.Search(n)
 }
 
 // Insert adds a prefix to the tree, provided the prefix doesn't already exist in the tree.
 func (t *Tree) Insert(n *net.IPNet) bool {
 	return true
+}
+
+func (n *Node) Search(ip net.IP) (*net.IPNet, error) {
+	// Search the L/R legs of the tree, If the L and R legs this node is the match.
+	// Search down the L tree leg.
+
+	// Search down the R tree leg.
+	return nil, nil
 }
