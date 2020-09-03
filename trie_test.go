@@ -9,7 +9,7 @@ import (
 
 func TestSearch(t *testing.T) {
 	ip1 := net.ParseIP("192.168.0.1")
-	ip2 := net.ParseIP("192.168.1.1")
+//	ip2 := net.ParseIP("192.168.1.1")
 	tests := []struct {
 		desc    string
 		ip      net.IP
@@ -39,7 +39,7 @@ func TestSearch(t *testing.T) {
 			t.Errorf("[%v]: did not get error when expecting one", test.desc)
 		case err == nil:
 			if diff := cmp.Diff(got, test.want); diff != "" {
-				t.Errorf("[$v]: Diff in got/want(+/-):\n%v\n", test.desc, diff)
+				t.Errorf("[%v]: Diff in got/want(+/-):\n%v\n", test.desc, diff)
 			}
 		}
 	}

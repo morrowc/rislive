@@ -84,8 +84,9 @@ func (n *Node) Search(ip net.IP) (*net.IPNet, error) {
 
 	var result *net.IPNet
 	// Search down the L tree leg, if ip is in l.Prefix, descend.
-	if n.l.Prefix.Contains(ip) {
-		result, err := n.l.Search(ip)
+	if n.l.Prefix.Network.Contains(ip) {
+		var err error
+		result, err = n.l.Search(ip)
 		if err != nil {
 			return nil, fmt.Errorf("failed searching a left branch: %s", err)
 		}
@@ -93,7 +94,8 @@ func (n *Node) Search(ip net.IP) (*net.IPNet, error) {
 
 	// No success on the left branch, search the right.
 	if result == nil {
-		result, err := n.r.Search(ip)
+		var err error
+		result, err = n.r.Search(ip)
 		if err != nil {
 			return nil, fmt.Errorf("failed searching a right branch: %s", err)
 		}
