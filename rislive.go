@@ -206,6 +206,10 @@ func (r *RisLive) Listen() {
 		}
 		req.Header.Set("User-Agent", *r.UA)
 		resp, err := client.Do(req)
+		if err != nil {
+			log.Errorf("failed to open the http client for action: %v", err)
+			return
+		}
 		defer resp.Body.Close()
 		body = resp.Body
 	default:
