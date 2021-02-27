@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -77,9 +78,28 @@ func (t *Tree) Insert(n *net.IPNet) bool {
 }
 
 func (n *Node) Search(ip net.IP) (*net.IPNet, error) {
-	// Search the L/R legs of the tree, If the L and R legs this node is the match.
-	// Search down the L tree leg.
+	if ip == nil {
+		return nil, errors.New("ip to search is nil")
+	}
 
+	var result *net.IPNet
+	// Search down the L tree leg, if ip is in l.Prefix, descend.
+	if n.l.Prefix.Network.Contains(ip) {
+		var err error
+		result, err = n.l.Search(ip)
+		if err != nil {
+			return nil, fmt.Errorf("failed searching a left branch: %s", err)
+		}
+	}
+
+	// No success on the left branch, search the right.
+	if result == nil {
+		var err error
+		result, err = n.r.Search(ip)
+		if err != nil {
+			return nil, fmt.Errorf("failed searching a right branch: %s", err)
+		}
+	}
 	// Search down the R tree leg.
-	return nil, nil
+	return result, nil
 }

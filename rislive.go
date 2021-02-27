@@ -157,11 +157,17 @@ func NewRisLive(url, file, ua *string, rf *RisFilter, buffer *int) *RisLive {
 func digestPath(m *RisMessageData) error {
 	m.DigestedPath = []int32{}
 	for _, p := range m.Path {
+		var o int32
 		switch v := p.(type) {
+		// exit loop since both of these can be type cast directly
+		// I would log this but no one added a logging package!!!!
+		// I would also combine these but typecasting is dumb and
+		// without this separation the compiler considers v an interface
+		// :(
 		case int:
-			m.DigestedPath = append(m.DigestedPath, int32(v))
+			o = int32(v)
 		case float64:
-			m.DigestedPath = append(m.DigestedPath, int32(v))
+			o = int32(v)
 		case []interface{}:
 			// Convert p to a slice of interface.
 			listSlice, ok := p.([]interface{})
@@ -169,11 +175,17 @@ func digestPath(m *RisMessageData) error {
 				return fmt.Errorf("failed to cast path element: %v as %v", p, reflect.TypeOf(p))
 			}
 			for _, e := range listSlice {
+				// I would move this down to the outside of the function but that's difficult
+				// and probably not efficient, assuming an input of mostly ints or float64's
 				m.DigestedPath = append(m.DigestedPath, int32(e.(float64)))
 			}
+			// not the cleanest but there's no sane way to clean this up otherwise
+			continue
 		default:
 			return fmt.Errorf("failed to decode path element: %v as %v", p, reflect.TypeOf(p))
 		}
+		m.DigestedPath = append(m.DigestedPath, o)
+
 	}
 	return nil
 }
