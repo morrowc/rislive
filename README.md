@@ -4,6 +4,8 @@
 )
 [![Coverage Status](https://coveralls.io/repos/github/morrowc/rislive/badge.svg?branch=master)](https://coveralls.io/github/morrowc/rislive?branch=master)
 
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/morrowc/rislive.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/morrowc/rislive/alerts/)
+
 (Apache2.0 License Applies)
 
 Golang client to connect to the RIPE RIS Live firehose, and listen for interesting events.
