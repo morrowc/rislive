@@ -1,11 +1,9 @@
-// Package main provides a high-performance, concurrency-safe Patricia Trie (Radix Tree)
+// Package trie provides a high-performance, concurrency-safe Patricia Trie (Radix Tree)
 // for storing and querying IPv4 and IPv6 subnets / networks.
 //
 // Supports Longest Prefix Match (LPM), covering prefix (supernet) lookups,
 // subnet (child) lookups, exact match, insertion, deletion, and iteration.
-//
-// TODO(morrowc): this should be moved to an external package (e.g. github.com/morrowc/trie).
-package main
+package trie
 
 import (
 	"errors"

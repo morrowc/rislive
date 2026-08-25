@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	log "github.com/golang/glog"
+	"github.com/morrowc/rislive/trie"
 )
 
 var (
@@ -51,7 +52,7 @@ type RisFilter struct {
 	InvalidTransitAS map[int32]bool // {"701":true, "3356":true}.
 	Origins          []string       // A list of interesting origin ASH.
 	Prefix           []string       // Prefix: ["1.2.3.0/24", "2001:db8::/32"] a list of prefixes.
-	PrefixTree       *Tree          // Cached Patricia Trie for fast IP prefix lookups.
+	PrefixTree       *trie.Tree     // Cached Patricia Trie for fast IP prefix lookups.
 }
 
 // RisMessage is a single ris_message json message from the ris firehose.
@@ -322,11 +323,11 @@ func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 }
 
 // getTree returns the Patricia Trie for fast prefix matching, initializing it if needed.
-func (rf *RisFilter) getTree() *Tree {
+func (rf *RisFilter) getTree() *trie.Tree {
 	if rf.PrefixTree != nil {
 		return rf.PrefixTree
 	}
-	t, _ := New()
+	t, _ := trie.New()
 	for _, prefix := range rf.Prefix {
 		if err := t.InsertCIDR(prefix); err != nil {
 			log.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
