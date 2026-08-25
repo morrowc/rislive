@@ -533,7 +533,7 @@ func TestPrefixesAndWalk(t *testing.T) {
 
 	// Test early termination of Walk during IPv4
 	walkCount := 0
-	tree.Walk(func(n *Node) bool {
+	tree.Walk(func(_ *Node) bool {
 		walkCount++
 		return false // stop immediately
 	})
@@ -725,7 +725,7 @@ func TestNilTreeReceiverMethods(t *testing.T) {
 	if nilTree.Prefixes() != nil {
 		t.Errorf("expected nil from nilTree.Prefixes()")
 	}
-	nilTree.Walk(func(n *Node) bool { return true })
+	nilTree.Walk(func(_ *Node) bool { return true })
 	if nilTree.getV4Root() != nil || nilTree.getV6Root() != nil {
 		t.Errorf("expected nil roots from nilTree")
 	}
@@ -759,7 +759,7 @@ func TestDeleteRightChildAndIntermediateNodes(t *testing.T) {
 	tree, _ := New()
 
 	// 10.1.1.128/25 has bit 24 = 1, which branches to the right child (r)
-	tree.InsertCIDR("10.1.1.128/25")
+	_ = tree.InsertCIDR("10.1.1.128/25")
 	if tree.Size() != 1 {
 		t.Fatalf("expected size 1, got %d", tree.Size())
 	}
@@ -773,8 +773,8 @@ func TestDeleteRightChildAndIntermediateNodes(t *testing.T) {
 	}
 
 	// Insert parent and child, then delete the parent
-	tree.InsertCIDR("10.0.0.0/8")
-	tree.InsertCIDR("10.1.0.0/16")
+	_ = tree.InsertCIDR("10.0.0.0/8")
+	_ = tree.InsertCIDR("10.1.0.0/16")
 	if tree.Size() != 2 {
 		t.Fatalf("expected size 2, got %d", tree.Size())
 	}
@@ -829,7 +829,7 @@ func TestConcurrentAccess(t *testing.T) {
 		go func(octet int) {
 			defer wg.Done()
 			cidr := fmt.Sprintf("10.%d.0.0/16", octet)
-			tree.InsertCIDR(cidr)
+			_ = tree.InsertCIDR(cidr)
 		}(i)
 	}
 
@@ -839,7 +839,7 @@ func TestConcurrentAccess(t *testing.T) {
 		go func(octet int) {
 			defer wg.Done()
 			ip := net.ParseIP(fmt.Sprintf("10.%d.1.1", octet))
-			tree.Lpm(ip)
+			_, _ = tree.Lpm(ip)
 		}(i)
 	}
 
@@ -853,8 +853,8 @@ func TestConcurrentAccess(t *testing.T) {
 func BenchmarkLpm(b *testing.B) {
 	tree, _ := New()
 	for i := 0; i < 256; i++ {
-		tree.InsertCIDR(fmt.Sprintf("10.%d.0.0/16", i))
-		tree.InsertCIDR(fmt.Sprintf("10.%d.1.0/24", i))
+		_ = tree.InsertCIDR(fmt.Sprintf("10.%d.0.0/16", i))
+		_ = tree.InsertCIDR(fmt.Sprintf("10.%d.1.0/24", i))
 	}
 	ip := net.ParseIP("10.128.1.55")
 

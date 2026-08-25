@@ -61,7 +61,6 @@ type Node struct {
 	Data   interface{} // Optional custom payload/metadata.
 	parent *Node       // Parent node.
 	l, r   *Node       // Left (bit 0) and Right (bit 1) children.
-	lock   *sync.Mutex // Optional mutex for node-level operations.
 }
 
 // GetIP returns the Node's IP if a prefix is assigned.

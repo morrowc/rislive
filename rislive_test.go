@@ -252,12 +252,13 @@ func TestInvalidTransitAS(t *testing.T) {
 		desc:       "Success - AS10 not in transit position",
 		msg:        msg01,
 		candidates: map[int32]bool{10: true, 14: true, 0: true},
-		want:       true,
+		want:       false,
 	}}
 
 	for _, test := range tests {
 		got := test.msg.InvalidTransitAS(test.candidates)
 		if got != test.want {
+			t.Errorf("[%v]: got/want mismatch got: %v want: %v", test.desc, got, test.want)
 		}
 	}
 }
@@ -467,8 +468,8 @@ func testServer(f string) *httptest.Server {
 		return nil
 	}
 
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, string(fd))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprintln(w, string(fd))
 	}))
 }
 
@@ -602,7 +603,7 @@ func TestListen(t *testing.T) {
 		go r.Listen()
 
 		for x := 0; x < test.recNum; x++ {
-			_ = <-r.Chan
+			<-r.Chan
 		}
 		got := <-r.Chan
 
@@ -704,7 +705,7 @@ func TestCheckPrefixEdgeCases(t *testing.T) {
 	}
 }
 
-func TestListenHTTPConnectionFailure(t *testing.T) {
+func TestListenHTTPConnectionFailure(_ *testing.T) {
 	badURL := "http://127.0.0.1:59999/nonexistent-stream"
 	emptyFile := ""
 	ua := "test-agent"
@@ -735,7 +736,7 @@ func TestDigestPathIntegerTypes(t *testing.T) {
 	}
 }
 
-func TestMainExecution(t *testing.T) {
+func TestMainExecution(_ *testing.T) {
 	oldRisFile := *risFile
 	defer func() { *risFile = oldRisFile }()
 
@@ -748,7 +749,7 @@ func TestListenBadJSONAndBadPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Write bad JSON, message with un-decodable path, and valid message
 	content := []byte(
@@ -759,7 +760,7 @@ func TestListenBadJSONAndBadPath(t *testing.T) {
 	if _, err := tmpFile.Write(content); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	filePath := tmpFile.Name()
 	r := &RisLive{

@@ -212,7 +212,7 @@ func (r *RisLive) Listen() {
 			log.Errorf("failed to open the http client for action: %v", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		body = resp.Body
 	default:
 		log.Infof("Heres a file read")
@@ -234,7 +234,7 @@ func (r *RisLive) Listen() {
 	if err != nil {
 		log.Fatalf("failed to open log file: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	for scanner.Scan() {
 		line := bytes.TrimSpace(scanner.Bytes())
@@ -264,7 +264,7 @@ func (r *RisLive) Listen() {
 // Get collects messages from the RisLive.Chan channel and filters results prior
 // to display or handling downstream.
 // TODO(morrowc): Why is Get accepting a Filter? Why not just use the Filter in RisLive?
-func (r *RisLive) Get(f *RisFilter) string {
+func (r *RisLive) Get(_ *RisFilter) string {
 	for rm := range r.Chan {
 		rmd := rm.Data
 		prefix := ""
@@ -273,9 +273,7 @@ func (r *RisLive) Get(f *RisFilter) string {
 			if len(rmd.Announcements[0].Prefixes) > 0 {
 				prefixes := []string{}
 				for _, a := range rmd.Announcements {
-					for _, p := range a.Prefixes {
-						prefixes = append(prefixes, p)
-					}
+					prefixes = append(prefixes, a.Prefixes...)
 					fmt.Printf("Prefixes: %v Origin: %v Path: %v\n",
 						strings.Join(prefixes, ", "),
 						rmd.DigestedPath[len(rmd.DigestedPath)-1],
