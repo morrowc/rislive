@@ -1,9 +1,9 @@
 # rislive
 
 [![RisLive](https://github.com/morrowc/rislive/actions/workflows/rislive.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/rislive.yml)
+[![golangci-lint](https://github.com/morrowc/rislive/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/golangci-lint.yml)
 [![CodeQL](https://github.com/morrowc/rislive/actions/workflows/codeql.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/codeql.yml)
 [![Coverage Status](https://coveralls.io/repos/github/morrowc/rislive/badge.svg?branch=main)](https://coveralls.io/github/morrowc/rislive?branch=main)
-[![Go Report Card](https://goreportcard.com/badge/github.com/morrowc/rislive)](https://goreportcard.com/report/github.com/morrowc/rislive)
 
 (Apache2.0 License Applies)
 
