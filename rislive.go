@@ -1,11 +1,11 @@
 // Package rislive implements a service to listen to the RIPE RIS Live service,
 // Messages from RIS Live are parsed and sent to a channel for use be clients.
 // There are filter capabilities for clients:
-//  ASPaths - monitor for prefixes matching an as-path fragment (slice)
-//  InvalidTransitAS - monitor for prefixes transiting an AS that shouldn't transit that AS. (map)
-//  Origins - monitor for prefixes with designated origins (slice)
-//  Prefix - monitor for a designated set of prefixes (slice)
 //
+//	ASPaths - monitor for prefixes matching an as-path fragment (slice)
+//	InvalidTransitAS - monitor for prefixes transiting an AS that shouldn't transit that AS. (map)
+//	Origins - monitor for prefixes with designated origins (slice)
+//	Prefix - monitor for a designated set of prefixes (slice)
 package main
 
 import (
@@ -50,6 +50,7 @@ type RisFilter struct {
 	InvalidTransitAS map[int32]bool // {"701":true, "3356":true}.
 	Origins          []string       // A list of interesting origin ASH.
 	Prefix           []string       // Prefix: ["1.2.3.0/24", "2001:db8::/32"] a list of prefixes.
+	PrefixTree       *Tree          // Cached Patricia Trie for fast IP prefix lookups.
 }
 
 // RisMessage is a single ris_message json message from the ris firehose.
@@ -316,37 +317,38 @@ func (r *RisLive) CheckOrigins(rm *RisMessageData) bool {
 	return false
 }
 
-// CheckPrefix will check each announcement in a message, and return true
-// if there is a prefix in the message that matches the watched prefixes.
-// These are exact matches of strings, there is no super/subnet/covering route
-// check being performed, ie:
-//   192.168.0.0/16 vs 192.168.0.0/16 - match
-//   192.168.0.0/16 vs 192.168.0.0/24 - no match
-// TODO(morrowc): Provide super/subnet verification of each announced prefix
-// to the requestors list of supernets.
+// getTree returns the Patricia Trie for fast prefix matching, initializing it if needed.
+func (rf *RisFilter) getTree() *Tree {
+	if rf.PrefixTree != nil {
+		return rf.PrefixTree
+	}
+	t, _ := New()
+	for _, prefix := range rf.Prefix {
+		if err := t.InsertCIDR(prefix); err != nil {
+			log.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+		}
+	}
+	rf.PrefixTree = t
+	return t
+}
+
+// CheckPrefix checks each announcement in a message, returning true if any announced prefix
+// is covered by or exactly matches the filter's watched prefixes.
+// Uses the Patricia Trie for O(W) prefix lookup instead of an O(N*M) linear scan.
 func (r *RisLive) CheckPrefix(rm *RisMessageData) bool {
-	if len(r.Filter.Prefix) > 0 {
-		filterPrefixes := []*net.IPNet{}
-		for _, prefix := range r.Filter.Prefix {
-			_, subnet, err := net.ParseCIDR(prefix)
+	if r.Filter == nil || len(r.Filter.Prefix) == 0 {
+		return false
+	}
+	tree := r.Filter.getTree()
+	for _, anns := range rm.Announcements {
+		for _, prefix := range anns.Prefixes {
+			_, annNet, err := net.ParseCIDR(prefix)
 			if err != nil {
-				log.Infof("failed to convert filter prefix(%v) to IPNet: %v", prefix, err)
+				log.Infof("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
 				continue
 			}
-			filterPrefixes = append(filterPrefixes, subnet)
-		}
-		for _, anns := range rm.Announcements {
-			for _, prefix := range anns.Prefixes {
-				for _, check := range filterPrefixes {
-					announcementIP, _, err := net.ParseCIDR(prefix)
-					if err != nil {
-						log.Infof("announcement prefix(%v) not parsed as CIDR: %v", prefix, err)
-						continue
-					}
-					if check.Contains(announcementIP) {
-						return true
-					}
-				}
+			if _, err := tree.CoveringPrefix(annNet); err == nil {
+				return true
 			}
 		}
 	}

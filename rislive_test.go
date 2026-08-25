@@ -410,7 +410,7 @@ func TestCheckPrefix(t *testing.T) {
 		desc: "Simple prefix match",
 		rm: &RisMessageData{
 			Announcements: []*RisAnnouncement{
-				&RisAnnouncement{
+				{
 					Prefixes: []string{"192.168.0.0/16"},
 				},
 			},
@@ -421,7 +421,7 @@ func TestCheckPrefix(t *testing.T) {
 		desc: "Match a subnet announcement",
 		rm: &RisMessageData{
 			Announcements: []*RisAnnouncement{
-				&RisAnnouncement{
+				{
 					Prefixes: []string{"192.168.0.0/24"},
 				},
 			},
@@ -432,7 +432,7 @@ func TestCheckPrefix(t *testing.T) {
 		desc: "RisLive data is improper",
 		rm: &RisMessageData{
 			Announcements: []*RisAnnouncement{
-				&RisAnnouncement{
+				{
 					Prefixes: []string{"192.168.0.0/24"},
 				},
 			},
@@ -443,7 +443,7 @@ func TestCheckPrefix(t *testing.T) {
 		desc: "RisMessageData is improper",
 		rm: &RisMessageData{
 			Announcements: []*RisAnnouncement{
-				&RisAnnouncement{
+				{
 					Prefixes: []string{"192.b.0.0/24"},
 				},
 			},
@@ -496,7 +496,7 @@ func TestListen(t *testing.T) {
 				Origin:       "igp",
 				DigestedPath: []int32{int32(57695), int32(37650)},
 				Announcements: []*RisAnnouncement{
-					&RisAnnouncement{
+					{
 						NextHop:  "196.60.9.165",
 						Prefixes: []string{"196.50.70.0/24"}}},
 				Raw: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000E15F00009312400304C43C09A5E00808E15F2EE0E15F2EE118C43246",
@@ -520,7 +520,7 @@ func TestListen(t *testing.T) {
 				Origin:       "igp",
 				DigestedPath: []int32{int32(57695), int32(37650)},
 				Announcements: []*RisAnnouncement{
-					&RisAnnouncement{
+					{
 						NextHop:  "196.60.9.165",
 						Prefixes: []string{"196.50.70.0/24"}}},
 				Raw: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000E15F00009312400304C43C09A5E00808E15F2EE0E15F2EE118C43246",
@@ -543,11 +543,11 @@ func TestListen(t *testing.T) {
 				Origin:       "igp",
 				DigestedPath: []int32{int32(24482), int32(6453), int32(174), int32(513), int32(513), int32(12654)},
 				Announcements: []*RisAnnouncement{
-					&RisAnnouncement{
+					{
 						NextHop:  "2001:7f8:d:ff::226",
 						Prefixes: []string{"2001:7fb:fe04::/48"},
 					},
-					&RisAnnouncement{
+					{
 						NextHop:  "fe80::2a0:a500:0:3e6",
 						Prefixes: []string{"2001:7fb:fe04::/48"},
 					},
@@ -571,10 +571,10 @@ func TestListen(t *testing.T) {
 				DigestedPath: []int32{int32(2497), int32(6453), int32(18705), int32(26281), int32(13340)},
 				Origin:       "incomplete",
 				Announcements: []*RisAnnouncement{
-					&RisAnnouncement{
+					{
 						NextHop:  "2001:504:1::a500:2497:1",
 						Prefixes: []string{"2607:ffc0:1000::/36"}},
-					&RisAnnouncement{
+					{
 						NextHop:  "fe80::86c1:c1ff:fe7d:6298",
 						Prefixes: []string{"2607:ffc0:1000::/36"},
 					},
