@@ -1,10 +1,9 @@
 # rislive
-![](https://github.com/morrowc/rislive/workflows/RisLive/badge.svg)
-![goreportcard](https://goreportcard.com/badge/github.com/morrowc/rislive "Go Report Card"
-)
-[![Coverage Status](https://coveralls.io/repos/github/morrowc/rislive/badge.svg?branch=master)](https://coveralls.io/github/morrowc/rislive?branch=master)
 
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/morrowc/rislive.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/morrowc/rislive/alerts/)
+[![RisLive](https://github.com/morrowc/rislive/actions/workflows/rislive.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/rislive.yml)
+[![CodeQL](https://github.com/morrowc/rislive/actions/workflows/codeql.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/codeql.yml)
+[![Coverage Status](https://coveralls.io/repos/github/morrowc/rislive/badge.svg?branch=main)](https://coveralls.io/github/morrowc/rislive?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/morrowc/rislive)](https://goreportcard.com/report/github.com/morrowc/rislive)
 
 (Apache2.0 License Applies)
 
