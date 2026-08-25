@@ -2,7 +2,7 @@
 
 [![RisLive](https://github.com/morrowc/rislive/actions/workflows/rislive.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/rislive.yml)
 [![golangci-lint](https://github.com/morrowc/rislive/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/golangci-lint.yml)
-[![CodeQL](https://github.com/morrowc/rislive/actions/workflows/codeql.yml/badge.svg)](https://github.com/morrowc/rislive/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/morrowc/rislive/workflows/CodeQL/badge.svg)](https://github.com/morrowc/rislive/security/code-scanning)
 [![Coverage Status](https://coveralls.io/repos/github/morrowc/rislive/badge.svg?branch=main)](https://coveralls.io/github/morrowc/rislive?branch=main)
 
 (Apache2.0 License Applies)

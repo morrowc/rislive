@@ -244,7 +244,7 @@ func (r *RisLive) Listen() {
 		}
 		var rm RisMessage
 		if err := json.Unmarshal(line, &rm); err != nil {
-			_, err := f.WriteString(fmt.Sprintf("bad json content: %s\n", string(line)))
+			_, err := fmt.Fprintf(f, "bad json content: %s\n", string(line))
 			if err != nil {
 				log.Fatalf("failed to write to log: %v", err)
 			}
