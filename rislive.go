@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -223,7 +224,10 @@ func (r *RisLive) Listen() {
 		log.Infof("Finished Reading File")
 	}
 
-	dec := json.NewDecoder(body)
+	scanner := bufio.NewScanner(body)
+	const maxCapacity = 10 * 1024 * 1024
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
 
 	// Remove log file once done.
 	f, err := os.Create("/tmp/log")
@@ -231,28 +235,30 @@ func (r *RisLive) Listen() {
 		log.Fatalf("failed to open log file: %v", err)
 	}
 	defer f.Close()
-	for {
+
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
 		var rm RisMessage
-		err := dec.Decode(&rm)
-		switch {
-		case err != nil && err != io.EOF:
-			_, err := f.WriteString(fmt.Sprintf("bad json content: %+v\n", rm.Data))
+		if err := json.Unmarshal(line, &rm); err != nil {
+			_, err := f.WriteString(fmt.Sprintf("bad json content: %s\n", string(line)))
 			if err != nil {
 				log.Fatalf("failed to write to log: %v", err)
 			}
 			continue
-		case err == io.EOF:
-			close(r.Chan)
-			return
 		}
-		err = digestPath(rm.Data)
-		if err != nil {
-			fmt.Printf("decoding the message data path(%v) failed: %v\n", rm.Data.Path, err)
-			log.Infof("decoding the message data path(%v) failed: %v", rm.Data.Path, err)
+		if rm.Data != nil {
+			if err := digestPath(rm.Data); err != nil {
+				fmt.Printf("decoding the message data path(%v) failed: %v\n", rm.Data.Path, err)
+				log.Infof("decoding the message data path(%v) failed: %v", rm.Data.Path, err)
+			}
 		}
 		r.Records++
 		r.Chan <- rm
 	}
+	close(r.Chan)
 }
 
 // Get collects messages from the RisLive.Chan channel and filters results prior

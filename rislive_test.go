@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -627,6 +628,16 @@ func TestGet(t *testing.T) {
 		},
 		file: "testdata/1-msg",
 		want: "Done",
+	}, {
+		desc: "Success matching all filters",
+		filter: &RisFilter{
+			Prefix:           []string{"196.50.70.0/24"},
+			ASPath:           []int32{int32(57695)},
+			Origins:          []string{"igp"},
+			InvalidTransitAS: map[int32]bool{int32(57695): true},
+		},
+		file: "testdata/1-msg",
+		want: "Message(1): Peer/ASN -> 196.60.9.165/57695 Prefix1: \n",
 	}}
 
 	for _, test := range tests {
@@ -640,5 +651,132 @@ func TestGet(t *testing.T) {
 		if !cmp.Equal(got, test.want) {
 			t.Errorf("[%v]: got/want mismatch:\n%v\n", test.desc, cmp.Diff(got, test.want))
 		}
+	}
+}
+
+func TestGetTreeCaching(t *testing.T) {
+	rf := &RisFilter{
+		Prefix: []string{"10.0.0.0/8", "192.168.1.0/24"},
+	}
+
+	tree1 := rf.getTree()
+	if tree1 == nil || tree1.Size() != 2 {
+		t.Fatalf("expected tree with size 2, got %v", tree1)
+	}
+
+	tree2 := rf.getTree()
+	if tree1 != tree2 {
+		t.Errorf("expected cached tree instance, got different instance")
+	}
+}
+
+func TestCheckPrefixEdgeCases(t *testing.T) {
+	rm := &RisMessageData{
+		Announcements: []*RisAnnouncement{
+			{
+				Prefixes: []string{"10.1.1.0/24", "invalid-prefix-cidr"},
+			},
+		},
+	}
+
+	// Nil Filter
+	rlNilFilter := &RisLive{Filter: nil}
+	if rlNilFilter.CheckPrefix(rm) {
+		t.Errorf("expected false for nil filter")
+	}
+
+	// Empty Prefix slice
+	rlEmptyPrefix := &RisLive{Filter: &RisFilter{Prefix: []string{}}}
+	if rlEmptyPrefix.CheckPrefix(rm) {
+		t.Errorf("expected false for empty prefix slice")
+	}
+
+	// Covered prefix match
+	rlCovered := &RisLive{Filter: &RisFilter{Prefix: []string{"10.0.0.0/8"}}}
+	if !rlCovered.CheckPrefix(rm) {
+		t.Errorf("expected true for covered prefix")
+	}
+
+	// Non-covered prefix
+	rlUncovered := &RisLive{Filter: &RisFilter{Prefix: []string{"192.168.0.0/16"}}}
+	if rlUncovered.CheckPrefix(rm) {
+		t.Errorf("expected false for uncovered prefix")
+	}
+}
+
+func TestListenHTTPConnectionFailure(t *testing.T) {
+	badURL := "http://127.0.0.1:59999/nonexistent-stream"
+	emptyFile := ""
+	ua := "test-agent"
+	r := &RisLive{
+		URL:    &badURL,
+		File:   &emptyFile,
+		UA:     &ua,
+		Filter: &RisFilter{},
+		Chan:   make(chan RisMessage, 10),
+	}
+
+	// Listen should log an error and return cleanly when client.Do fails
+	r.Listen()
+}
+
+func TestDigestPathIntegerTypes(t *testing.T) {
+	msgInt := &RisMessageData{
+		Path: []interface{}{int(100), int(200), float64(300)},
+	}
+
+	if err := digestPath(msgInt); err != nil {
+		t.Fatalf("digestPath failed for int/float path: %v", err)
+	}
+
+	want := []int32{100, 200, 300}
+	if diff := cmp.Diff(msgInt.DigestedPath, want); diff != "" {
+		t.Errorf("DigestedPath mismatch (-got +want):\n%s", diff)
+	}
+}
+
+func TestMainExecution(t *testing.T) {
+	oldRisFile := *risFile
+	defer func() { *risFile = oldRisFile }()
+
+	*risFile = "testdata/1-msg"
+	main()
+}
+
+func TestListenBadJSONAndBadPath(t *testing.T) {
+	tmpFile, err := ioutil.TempFile("", "rislive-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Write bad JSON, message with un-decodable path, and valid message
+	content := []byte(
+		`{"not valid json"` + "\n" +
+			`{"type":"ris_message","data":{"path":["bad","path"],"announcements":[]}}` + "\n" +
+			`{"type":"ris_message","data":{"path":[1,2,3],"announcements":[]}}` + "\n",
+	)
+	if _, err := tmpFile.Write(content); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	filePath := tmpFile.Name()
+	r := &RisLive{
+		File:   &filePath,
+		Filter: &RisFilter{},
+		Chan:   make(chan RisMessage, 10),
+	}
+
+	go r.Listen()
+
+	// Drain messages
+	var msgs []RisMessage
+	for msg := range r.Chan {
+		msgs = append(msgs, msg)
+	}
+
+	if len(msgs) != 2 {
+		t.Errorf("expected 2 messages from stream, got %d", len(msgs))
 	}
 }

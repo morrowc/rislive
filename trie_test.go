@@ -40,6 +40,11 @@ func TestNew(t *testing.T) {
 			wantLen: 2,
 		},
 		{
+			desc:    "Empty string in roots is skipped",
+			roots:   []string{"", "10.0.0.0/8"},
+			wantLen: 1,
+		},
+		{
 			desc:    "Invalid CIDR root",
 			roots:   []string{"192.168.0.0/99"},
 			wantErr: true,
@@ -289,6 +294,37 @@ func TestInsertWithDataAndLpmWithData(t *testing.T) {
 	}
 }
 
+func TestInsertCIDRWithData(t *testing.T) {
+	tree, _ := New()
+
+	err := tree.InsertCIDRWithData("192.168.1.0/24", "gateway-1")
+	if err != nil {
+		t.Fatalf("InsertCIDRWithData failed: %v", err)
+	}
+
+	netw, val, err := tree.LpmWithData(net.ParseIP("192.168.1.50"))
+	if err != nil {
+		t.Fatalf("LpmWithData failed: %v", err)
+	}
+	if netw.String() != "192.168.1.0/24" || val != "gateway-1" {
+		t.Errorf("unexpected match: %v, %v", netw, val)
+	}
+
+	// Invalid CIDR
+	if err := tree.InsertCIDRWithData("invalid-cidr", "data"); err == nil {
+		t.Errorf("expected error for invalid CIDR in InsertCIDRWithData")
+	}
+
+	// Insert duplicate CIDR updates data and returns no error
+	if err := tree.InsertCIDRWithData("192.168.1.0/24", "gateway-updated"); err != nil {
+		t.Errorf("InsertCIDRWithData on existing prefix failed: %v", err)
+	}
+	_, val2, _ := tree.LpmWithData(net.ParseIP("192.168.1.50"))
+	if val2 != "gateway-updated" {
+		t.Errorf("expected data to be updated to 'gateway-updated', got: %v", val2)
+	}
+}
+
 func TestPrefixLpm(t *testing.T) {
 	tree, _ := New("10.0.0.0/8", "10.1.0.0/16")
 
@@ -393,6 +429,11 @@ func TestFindAndContains(t *testing.T) {
 		t.Errorf("found non-existent CIDR")
 	}
 
+	// Invalid CIDR string for FindCIDR
+	if _, found := tree.FindCIDR("invalid-cidr"); found {
+		t.Errorf("expected FindCIDR('invalid-cidr') to return false")
+	}
+
 	// Contains tests
 	if !tree.Contains(net.ParseIP("192.168.1.50")) {
 		t.Errorf("expected tree to contain IP 192.168.1.50")
@@ -406,6 +447,9 @@ func TestFindAndContains(t *testing.T) {
 	}
 	if tree.ContainsCIDR("10.0.0.0/8") {
 		t.Errorf("expected ContainsCIDR false")
+	}
+	if tree.ContainsCIDR("invalid-cidr") {
+		t.Errorf("expected ContainsCIDR false for invalid CIDR")
 	}
 }
 
@@ -450,6 +494,16 @@ func TestDeleteAndPruning(t *testing.T) {
 	if err := tree.DeleteCIDR("10.0.0.0/8"); err == nil {
 		t.Errorf("expected error deleting missing prefix via DeleteCIDR")
 	}
+
+	// DeleteCIDR with invalid string
+	if err := tree.DeleteCIDR("not-a-cidr"); err == nil {
+		t.Errorf("expected error for invalid CIDR in DeleteCIDR")
+	}
+
+	// Delete non-existent prefix on branch
+	if tree.Delete(mustCIDR("192.168.1.0/24")) {
+		t.Errorf("expected false deleting non-existent prefix")
+	}
 }
 
 func TestPrefixesAndWalk(t *testing.T) {
@@ -457,6 +511,7 @@ func TestPrefixesAndWalk(t *testing.T) {
 		"10.0.0.0/8",
 		"192.168.1.0/24",
 		"2001:db8::/32",
+		"2001:db8:1::/48",
 	}
 
 	tree, _ := New(prefixes...)
@@ -476,7 +531,7 @@ func TestPrefixesAndWalk(t *testing.T) {
 		t.Errorf("walked %d prefixes, want %d", len(walked), len(prefixes))
 	}
 
-	// Test early termination of Walk
+	// Test early termination of Walk during IPv4
 	walkCount := 0
 	tree.Walk(func(n *Node) bool {
 		walkCount++
@@ -485,24 +540,59 @@ func TestPrefixesAndWalk(t *testing.T) {
 	if walkCount != 1 {
 		t.Errorf("expected walk to terminate at 1, got %d", walkCount)
 	}
+
+	// Test early termination of Walk during IPv6
+	v6Count := 0
+	tree.Walk(func(n *Node) bool {
+		if n.Prefix != nil && n.Prefix.Network.IP.To4() == nil {
+			v6Count++
+			return false // stop after first IPv6
+		}
+		return true
+	})
+	if v6Count != 1 {
+		t.Errorf("expected v6 walk to stop after 1, got %d", v6Count)
+	}
 }
 
 func TestNodeSearch(t *testing.T) {
-	tree, _ := New("192.168.0.0/16")
+	tree, _ := New("192.168.0.0/16", "192.168.1.0/24")
 
 	// Search on node directly
 	got, err := tree.v4.Search(net.ParseIP("192.168.1.1"))
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
-	if got.String() != "192.168.0.0/16" {
-		t.Errorf("got %s, want 192.168.0.0/16", got)
+	if got.String() != "192.168.1.0/24" {
+		t.Errorf("got %s, want 192.168.1.0/24", got)
+	}
+
+	// Search matching root/top prefix
+	gotRoot, err := tree.v4.Search(net.ParseIP("192.168.2.1"))
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+	if gotRoot.String() != "192.168.0.0/16" {
+		t.Errorf("got %s, want 192.168.0.0/16", gotRoot)
+	}
+
+	// Search with no matching prefix in subtree
+	treeEmpty, _ := New()
+	_, err = treeEmpty.v4.Search(net.ParseIP("192.168.1.1"))
+	if err == nil {
+		t.Errorf("expected error searching on empty node subtree")
 	}
 
 	// Search with nil IP
 	_, err = tree.v4.Search(nil)
 	if err == nil {
 		t.Errorf("expected error searching for nil IP")
+	}
+
+	// Search with invalid IP length
+	_, err = tree.v4.Search(net.IP{1, 2, 3})
+	if err == nil {
+		t.Errorf("expected error searching with invalid length IP")
 	}
 
 	// Search with nil Node
@@ -545,6 +635,187 @@ func TestNodeAndPrefixAccessors(t *testing.T) {
 	var nilNode *Node
 	if nilNode.GetIP() != nil || nilNode.GetNet() != nil {
 		t.Errorf("nilNode accessors failed")
+	}
+}
+
+func TestSplitIPAndParseCanonicalizeEdgeCases(t *testing.T) {
+	// splitIP nil IP
+	if _, _, _, err := splitIP(nil); err == nil {
+		t.Errorf("expected error from splitIP(nil)")
+	}
+
+	// splitIP invalid length
+	if _, _, _, err := splitIP(net.IP{1, 2, 3}); err == nil {
+		t.Errorf("expected error from splitIP with 3 bytes")
+	}
+
+	// parseAndCanonicalize nil or invalid net
+	if _, _, _, _, _, err := parseAndCanonicalize(nil); err == nil {
+		t.Errorf("expected error from parseAndCanonicalize(nil)")
+	}
+	if _, _, _, _, _, err := parseAndCanonicalize(&net.IPNet{IP: nil, Mask: net.CIDRMask(24, 32)}); err == nil {
+		t.Errorf("expected error from parseAndCanonicalize with nil IP")
+	}
+	if _, _, _, _, _, err := parseAndCanonicalize(&net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: nil}); err == nil {
+		t.Errorf("expected error from parseAndCanonicalize with nil Mask")
+	}
+	if _, _, _, _, _, err := parseAndCanonicalize(&net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: net.IPMask{0xff}}); err == nil {
+		t.Errorf("expected error from parseAndCanonicalize with invalid mask size")
+	}
+	// Mismatched IP family and mask size
+	if _, _, _, _, _, err := parseAndCanonicalize(&net.IPNet{IP: net.IP{1, 2, 3}, Mask: net.CIDRMask(24, 32)}); err == nil {
+		t.Errorf("expected error from parseAndCanonicalize with 3-byte IP")
+	}
+}
+
+func TestNilTreeReceiverMethods(t *testing.T) {
+	var nilTree *Tree
+
+	if nilTree.Insert(mustCIDR("10.0.0.0/8")) {
+		t.Errorf("expected false from nilTree.Insert")
+	}
+	if err := nilTree.InsertCIDR("10.0.0.0/8"); err == nil {
+		t.Errorf("expected error from nilTree.InsertCIDR")
+	}
+	if nilTree.InsertWithData(mustCIDR("10.0.0.0/8"), "val") {
+		t.Errorf("expected false from nilTree.InsertWithData")
+	}
+	if err := nilTree.InsertCIDRWithData("10.0.0.0/8", "val"); err == nil {
+		t.Errorf("expected error from nilTree.InsertCIDRWithData")
+	}
+	if _, err := nilTree.Lpm(net.ParseIP("10.0.0.1")); err == nil {
+		t.Errorf("expected error from nilTree.Lpm")
+	}
+	if _, err := nilTree.PrefixLpm(mustCIDR("10.0.0.0/8")); err == nil {
+		t.Errorf("expected error from nilTree.PrefixLpm")
+	}
+	if _, _, err := nilTree.LpmWithData(net.ParseIP("10.0.0.1")); err == nil {
+		t.Errorf("expected error from nilTree.LpmWithData")
+	}
+	if _, found := nilTree.Find(mustCIDR("10.0.0.0/8")); found {
+		t.Errorf("expected false from nilTree.Find")
+	}
+	if _, found := nilTree.FindCIDR("10.0.0.0/8"); found {
+		t.Errorf("expected false from nilTree.FindCIDR")
+	}
+	if nilTree.Contains(net.ParseIP("10.0.0.1")) {
+		t.Errorf("expected false from nilTree.Contains")
+	}
+	if nilTree.ContainsCIDR("10.0.0.0/8") {
+		t.Errorf("expected false from nilTree.ContainsCIDR")
+	}
+	if _, err := nilTree.CoveringPrefix(mustCIDR("10.0.0.0/8")); err == nil {
+		t.Errorf("expected error from nilTree.CoveringPrefix")
+	}
+	if res := nilTree.CoveringPrefixes(mustCIDR("10.0.0.0/8")); res != nil {
+		t.Errorf("expected nil from nilTree.CoveringPrefixes")
+	}
+	if res := nilTree.Subnets(mustCIDR("10.0.0.0/8")); res != nil {
+		t.Errorf("expected nil from nilTree.Subnets")
+	}
+	if nilTree.Delete(mustCIDR("10.0.0.0/8")) {
+		t.Errorf("expected false from nilTree.Delete")
+	}
+	if err := nilTree.DeleteCIDR("10.0.0.0/8"); err == nil {
+		t.Errorf("expected error from nilTree.DeleteCIDR")
+	}
+	if nilTree.Size() != 0 {
+		t.Errorf("expected 0 from nilTree.Size()")
+	}
+	if nilTree.Prefixes() != nil {
+		t.Errorf("expected nil from nilTree.Prefixes()")
+	}
+	nilTree.Walk(func(n *Node) bool { return true })
+	if nilTree.getV4Root() != nil || nilTree.getV6Root() != nil {
+		t.Errorf("expected nil roots from nilTree")
+	}
+}
+
+func TestUninitializedTreeRoots(t *testing.T) {
+	// Directly constructed empty Tree struct without calling New()
+	rawTree := &Tree{}
+
+	if rawTree.getV4Root() == nil || rawTree.getV6Root() == nil {
+		t.Errorf("expected non-nil roots initialized on demand")
+	}
+
+	// Insert on rawTree
+	if !rawTree.Insert(mustCIDR("192.168.1.0/24")) {
+		t.Errorf("failed to insert into rawTree")
+	}
+	if rawTree.Size() != 1 {
+		t.Errorf("expected size 1, got %d", rawTree.Size())
+	}
+
+	// Tree with legacy Root field set
+	legacyRoot := &Node{}
+	legacyTree := &Tree{Root: legacyRoot}
+	if legacyTree.getV4Root() != legacyRoot {
+		t.Errorf("expected getV4Root to reuse legacy Root")
+	}
+}
+
+func TestDeleteRightChildAndIntermediateNodes(t *testing.T) {
+	tree, _ := New()
+
+	// 10.1.1.128/25 has bit 24 = 1, which branches to the right child (r)
+	tree.InsertCIDR("10.1.1.128/25")
+	if tree.Size() != 1 {
+		t.Fatalf("expected size 1, got %d", tree.Size())
+	}
+
+	// Deleting it should prune the right child and its parent chain
+	if !tree.Delete(mustCIDR("10.1.1.128/25")) {
+		t.Errorf("failed to delete 10.1.1.128/25")
+	}
+	if tree.Size() != 0 {
+		t.Errorf("expected size 0 after deletion, got %d", tree.Size())
+	}
+
+	// Insert parent and child, then delete the parent
+	tree.InsertCIDR("10.0.0.0/8")
+	tree.InsertCIDR("10.1.0.0/16")
+	if tree.Size() != 2 {
+		t.Fatalf("expected size 2, got %d", tree.Size())
+	}
+
+	// Deleting the /8 parent should remove its prefix but preserve /16 child
+	if !tree.Delete(mustCIDR("10.0.0.0/8")) {
+		t.Errorf("failed to delete /8 parent")
+	}
+	if tree.Size() != 1 {
+		t.Errorf("expected size 1, got %d", tree.Size())
+	}
+	if !tree.ContainsCIDR("10.1.0.0/16") {
+		t.Errorf("expected child 10.1.0.0/16 to remain in tree")
+	}
+	if tree.ContainsCIDR("10.0.0.0/8") {
+		t.Errorf("expected parent 10.0.0.0/8 to be deleted")
+	}
+}
+
+func TestUnpopulatedFamilyQueries(t *testing.T) {
+	// A Tree struct with only v4 populated (v6 is nil)
+	tree := &Tree{
+		v4: &Node{},
+	}
+
+	// Querying IPv6 on unpopulated v6 root
+	v6Net := mustCIDR("2001:db8::/32")
+	if _, err := tree.CoveringPrefix(v6Net); err == nil {
+		t.Errorf("expected error from CoveringPrefix for unpopulated v6")
+	}
+	if res := tree.CoveringPrefixes(v6Net); res != nil {
+		t.Errorf("expected nil from CoveringPrefixes for unpopulated v6")
+	}
+	if res := tree.Subnets(v6Net); res != nil {
+		t.Errorf("expected nil from Subnets for unpopulated v6")
+	}
+	if tree.Delete(v6Net) {
+		t.Errorf("expected false from Delete for unpopulated v6")
+	}
+	if _, found := tree.Find(v6Net); found {
+		t.Errorf("expected false from Find for unpopulated v6")
 	}
 }
 
